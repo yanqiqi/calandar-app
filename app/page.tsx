@@ -24,6 +24,149 @@ export default function Home() {
   const [typedText, setTypedText] = useState("")
   const [isPlaying, setIsPlaying] = useState(false)
 
+  // Calendar state
+  const [currentView, setCurrentView] = useState("week")
+  const [currentDate, setCurrentDate] = useState(new Date(2025, 2, 5)) // March 5, 2025
+  const [selectedEvent, setSelectedEvent] = useState(null)
+
+  // Get current month and format it
+  const getCurrentMonth = () => {
+    return currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+  }
+
+  const getCurrentDateString = () => {
+    return currentDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })
+  }
+
+  // Get week dates based on current date
+  const getWeekDates = () => {
+    const startOfWeek = new Date(currentDate)
+    const day = startOfWeek.getDay()
+    startOfWeek.setDate(startOfWeek.getDate() - day)
+
+    const weekDates = []
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(startOfWeek)
+      date.setDate(startOfWeek.getDate() + i)
+      weekDates.push(date.getDate())
+    }
+    return weekDates
+  }
+
+  // Get mini calendar days
+  const getMiniCalendarDays = () => {
+    const year = currentDate.getFullYear()
+    const month = currentDate.getMonth()
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const firstDayOfWeek = firstDay.getDay()
+    const daysInMonth = lastDay.getDate()
+
+    const days = []
+
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < firstDayOfWeek; i++) {
+      days.push(null)
+    }
+
+    // Add days of the month
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push(i)
+    }
+
+    return days
+  }
+
+  // Navigation functions
+  const goToPreviousMonth = () => {
+    setCurrentDate((prev) => {
+      const newDate = new Date(prev)
+      newDate.setMonth(prev.getMonth() - 1)
+      return newDate
+    })
+  }
+
+  const goToNextMonth = () => {
+    setCurrentDate((prev) => {
+      const newDate = new Date(prev)
+      newDate.setMonth(prev.getMonth() + 1)
+      return newDate
+    })
+  }
+
+  const goToPreviousWeek = () => {
+    setCurrentDate((prev) => {
+      const newDate = new Date(prev)
+      newDate.setDate(prev.getDate() - 7)
+      return newDate
+    })
+  }
+
+  const goToNextWeek = () => {
+    setCurrentDate((prev) => {
+      const newDate = new Date(prev)
+      newDate.setDate(prev.getDate() + 7)
+      return newDate
+    })
+  }
+
+  const goToPreviousDay = () => {
+    setCurrentDate((prev) => {
+      const newDate = new Date(prev)
+      newDate.setDate(prev.getDate() - 1)
+      return newDate
+    })
+  }
+
+  const goToNextDay = () => {
+    setCurrentDate((prev) => {
+      const newDate = new Date(prev)
+      newDate.setDate(prev.getDate() + 1)
+      return newDate
+    })
+  }
+
+  const goToToday = () => {
+    setCurrentDate(new Date(2025, 2, 5)) // March 5, 2025 (keeping original date)
+  }
+
+  const handleMiniCalendarDayClick = (day) => {
+    if (day) {
+      const newDate = new Date(currentDate)
+      newDate.setDate(day)
+      setCurrentDate(newDate)
+    }
+  }
+
+  // Navigation handlers based on current view
+  const handlePrevious = () => {
+    switch (currentView) {
+      case "day":
+        goToPreviousDay()
+        break
+      case "week":
+        goToPreviousWeek()
+        break
+      case "month":
+        goToPreviousMonth()
+        break
+    }
+  }
+
+  const handleNext = () => {
+    switch (currentView) {
+      case "day":
+        goToNextDay()
+        break
+      case "week":
+        goToNextWeek()
+        break
+      case "month":
+        goToNextMonth()
+        break
+    }
+  }
+
   useEffect(() => {
     setIsLoaded(true)
 
@@ -53,16 +196,11 @@ export default function Home() {
     }
   }, [showAIPopup])
 
-  const [currentView, setCurrentView] = useState("week")
-  const [currentMonth, setCurrentMonth] = useState("March 2025")
-  const [currentDate, setCurrentDate] = useState("March 5")
-  const [selectedEvent, setSelectedEvent] = useState(null)
-
   const handleEventClick = (event) => {
     setSelectedEvent(event)
   }
 
-  // Updated sample calendar events with all events before 4 PM
+  // Updated sample calendar events with dynamic dates
   const events = [
     {
       id: 1,
@@ -164,7 +302,7 @@ export default function Home() {
       id: 9,
       title: "Morning Standup",
       startTime: "08:30",
-      endTime: "09:30", // Changed from "09:00" to "09:30"
+      endTime: "09:30",
       color: "bg-blue-400",
       day: 2,
       description: "Daily team standup",
@@ -248,7 +386,7 @@ export default function Home() {
 
   // Sample calendar days for the week view
   const weekDays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
-  const weekDates = [3, 4, 5, 6, 7, 8, 9]
+  const weekDates = getWeekDates()
   const timeSlots = Array.from({ length: 9 }, (_, i) => i + 8) // 8 AM to 4 PM
 
   // Helper function to calculate event position and height
@@ -260,12 +398,8 @@ export default function Home() {
     return { top: `${top}px`, height: `${height}px` }
   }
 
-  // Sample calendar for mini calendar
-  const daysInMonth = 31
-  const firstDayOffset = 5 // Friday is the first day of the month in this example
-  const miniCalendarDays = Array.from({ length: daysInMonth + firstDayOffset }, (_, i) =>
-    i < firstDayOffset ? null : i - firstDayOffset + 1,
-  )
+  // Get mini calendar days
+  const miniCalendarDays = getMiniCalendarDays()
 
   // Sample my calendars
   const myCalendars = [
@@ -333,12 +467,12 @@ export default function Home() {
             {/* Mini Calendar */}
             <div className="mb-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white font-medium">{currentMonth}</h3>
+                <h3 className="text-white font-medium">{getCurrentMonth()}</h3>
                 <div className="flex gap-1">
-                  <button className="p-1 rounded-full hover:bg-white/20">
+                  <button className="p-1 rounded-full hover:bg-white/20 transition-colors" onClick={goToPreviousMonth}>
                     <ChevronLeft className="h-4 w-4 text-white" />
                   </button>
-                  <button className="p-1 rounded-full hover:bg-white/20">
+                  <button className="p-1 rounded-full hover:bg-white/20 transition-colors" onClick={goToNextMonth}>
                     <ChevronRight className="h-4 w-4 text-white" />
                   </button>
                 </div>
@@ -354,9 +488,10 @@ export default function Home() {
                 {miniCalendarDays.map((day, i) => (
                   <div
                     key={i}
-                    className={`text-xs rounded-full w-7 h-7 flex items-center justify-center ${
-                      day === 5 ? "bg-blue-500 text-white" : "text-white hover:bg-white/20"
+                    className={`text-xs rounded-full w-7 h-7 flex items-center justify-center cursor-pointer transition-colors ${
+                      day === currentDate.getDate() ? "bg-blue-500 text-white" : "text-white hover:bg-white/20"
                     } ${!day ? "invisible" : ""}`}
+                    onClick={() => handleMiniCalendarDayClick(day)}
                   >
                     {day}
                   </div>
@@ -392,34 +527,47 @@ export default function Home() {
           {/* Calendar Controls */}
           <div className="flex items-center justify-between p-4 border-b border-white/20">
             <div className="flex items-center gap-4">
-              <button className="px-4 py-2 text-white bg-blue-500 rounded-md">Today</button>
+              <button
+                className="px-4 py-2 text-white bg-blue-500 rounded-md hover:bg-blue-600 transition-colors"
+                onClick={goToToday}
+              >
+                Today
+              </button>
               <div className="flex">
-                <button className="p-2 text-white hover:bg-white/10 rounded-l-md">
+                <button
+                  className="p-2 text-white hover:bg-white/10 rounded-l-md transition-colors"
+                  onClick={handlePrevious}
+                >
                   <ChevronLeft className="h-5 w-5" />
                 </button>
-                <button className="p-2 text-white hover:bg-white/10 rounded-r-md">
+                <button
+                  className="p-2 text-white hover:bg-white/10 rounded-r-md transition-colors"
+                  onClick={handleNext}
+                >
                   <ChevronRight className="h-5 w-5" />
                 </button>
               </div>
-              <h2 className="text-xl font-semibold text-white">{currentDate}</h2>
+              <h2 className="text-xl font-semibold text-white">
+                {currentView === "month" ? getCurrentMonth() : getCurrentDateString()}
+              </h2>
             </div>
 
             <div className="flex items-center gap-2 rounded-md p-1">
               <button
                 onClick={() => setCurrentView("day")}
-                className={`px-3 py-1 rounded ${currentView === "day" ? "bg-white/20" : ""} text-white text-sm`}
+                className={`px-3 py-1 rounded transition-colors ${currentView === "day" ? "bg-white/20" : "hover:bg-white/10"} text-white text-sm`}
               >
                 Day
               </button>
               <button
                 onClick={() => setCurrentView("week")}
-                className={`px-3 py-1 rounded ${currentView === "week" ? "bg-white/20" : ""} text-white text-sm`}
+                className={`px-3 py-1 rounded transition-colors ${currentView === "week" ? "bg-white/20" : "hover:bg-white/10"} text-white text-sm`}
               >
                 Week
               </button>
               <button
                 onClick={() => setCurrentView("month")}
-                className={`px-3 py-1 rounded ${currentView === "month" ? "bg-white/20" : ""} text-white text-sm`}
+                className={`px-3 py-1 rounded transition-colors ${currentView === "month" ? "bg-white/20" : "hover:bg-white/10"} text-white text-sm`}
               >
                 Month
               </button>
@@ -436,7 +584,7 @@ export default function Home() {
                   <div key={i} className="p-2 text-center border-l border-white/20">
                     <div className="text-xs text-white/70 font-medium">{day}</div>
                     <div
-                      className={`text-lg font-medium mt-1 text-white ${weekDates[i] === 5 ? "bg-blue-500 rounded-full w-8 h-8 flex items-center justify-center mx-auto" : ""}`}
+                      className={`text-lg font-medium mt-1 text-white transition-colors ${weekDates[i] === currentDate.getDate() ? "bg-blue-500 rounded-full w-8 h-8 flex items-center justify-center mx-auto" : ""}`}
                     >
                       {weekDates[i]}
                     </div>
@@ -552,7 +700,7 @@ export default function Home() {
                 </p>
                 <p className="flex items-center">
                   <Calendar className="mr-2 h-5 w-5" />
-                  {`${weekDays[selectedEvent.day - 1]}, ${weekDates[selectedEvent.day - 1]} ${currentMonth}`}
+                  {`${weekDays[selectedEvent.day - 1]}, ${weekDates[selectedEvent.day - 1]} ${getCurrentMonth()}`}
                 </p>
                 <p className="flex items-start">
                   <Users className="mr-2 h-5 w-5 mt-1" />
@@ -580,8 +728,6 @@ export default function Home() {
             </div>
           </div>
         )}
-
-        {/* Floating Action Button - Removed */}
       </main>
     </div>
   )
