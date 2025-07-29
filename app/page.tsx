@@ -37,7 +37,7 @@ export default function Home() {
 
   // Calendar state
   const [currentView, setCurrentView] = useState("week")
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 2, 5)) // March 5, 2025
+  const [currentDate, setCurrentDate] = useState(new Date(2025, 29, 7)) // March 5, 2025
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
 
   // Calculate date range based on current view and date
@@ -187,7 +187,10 @@ export default function Home() {
   }
 
   const goToToday = () => {
-    setCurrentDate(new Date(2025, 2, 5)) // March 5, 2025 (keeping original date)
+    const today = new Date();
+    const dateExpression = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+    setCurrentDate(dateExpression) // March 5, 2025 (keeping original date)
+
   }
 
   const handleMiniCalendarDayClick = (day) => {
