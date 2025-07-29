@@ -1,9 +1,42 @@
 import { createClient } from "@supabase/supabase-js"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// Check if environment variables are available
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Create a mock client if environment variables are missing
+const createMockClient = () => ({
+  from: () => ({
+    select: () => ({
+      gte: () => ({
+        lte: () => ({
+          order: () => ({
+            order: () => Promise.resolve({ data: [], error: new Error("Supabase not configured") }),
+          }),
+        }),
+      }),
+    }),
+    insert: () => ({
+      select: () => ({
+        single: () => Promise.resolve({ data: null, error: new Error("Supabase not configured") }),
+      }),
+    }),
+    update: () => ({
+      eq: () => ({
+        select: () => ({
+          single: () => Promise.resolve({ data: null, error: new Error("Supabase not configured") }),
+        }),
+      }),
+    }),
+    delete: () => ({
+      eq: () => Promise.resolve({ error: new Error("Supabase not configured") }),
+    }),
+  }),
+})
+
+export const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : createMockClient()
+
+export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey)
 
 export type Event = {
   id: string

@@ -59,7 +59,8 @@ export default function Home() {
   }, [currentDate, currentView])
 
   // Use the events hook with dynamic date range
-  const { events, loading, error, createEvent, updateEvent, deleteEvent } = useEvents(dateRange.start, dateRange.end)
+  const { events, loading, error, usingFallback, isSupabaseConfigured, createEvent, updateEvent, deleteEvent } =
+    useEvents(dateRange.start, dateRange.end)
 
   // Get current month and format it
   const getCurrentMonth = () => {
@@ -421,6 +422,11 @@ export default function Home() {
                 {currentView === "month" ? getCurrentMonth() : getCurrentDateString()}
               </h2>
               {loading && <Loader2 className="h-5 w-5 text-white animate-spin" />}
+              {usingFallback && (
+                <div className="px-2 py-1 bg-yellow-500/20 border border-yellow-500/30 rounded text-yellow-200 text-xs">
+                  Demo Mode
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-2 rounded-md p-1">
@@ -448,7 +454,12 @@ export default function Home() {
           {/* Error Display */}
           {error && (
             <div className="mx-4 mt-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-white text-sm">
-              Error loading events: {error}
+              Error: {error}
+            </div>
+          )}
+          {usingFallback && !error && (
+            <div className="mx-4 mt-4 p-3 bg-blue-500/20 border border-blue-500/30 rounded-lg text-white text-sm">
+              📝 Running in demo mode with sample data. Configure Supabase to enable full functionality.
             </div>
           )}
 

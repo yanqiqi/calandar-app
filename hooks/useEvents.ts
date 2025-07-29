@@ -1,17 +1,28 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { supabase, type Event } from "@/lib/supabase"
+import { supabase, isSupabaseConfigured, type Event } from "@/lib/supabase"
+import { getEventsByDateRange } from "@/lib/fallback-events"
 
 export function useEvents(startDate: Date, endDate: Date) {
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [usingFallback, setUsingFallback] = useState(false)
 
   const fetchEvents = async () => {
     try {
       setLoading(true)
       setError(null)
+
+      // If Supabase is not configured, use fallback data
+      if (!isSupabaseConfigured) {
+        console.warn("Supabase not configured, using fallback data")
+        const fallbackEvents = getEventsByDateRange(startDate, endDate)
+        setEvents(fallbackEvents)
+        setUsingFallback(true)
+        return
+      }
 
       const startDateStr = startDate.toISOString().split("T")[0]
       const endDateStr = endDate.toISOString().split("T")[0]
@@ -24,12 +35,24 @@ export function useEvents(startDate: Date, endDate: Date) {
         .order("date", { ascending: true })
         .order("start_time", { ascending: true })
 
-      if (error) throw error
+      if (error) {
+        // If Supabase fails, fall back to local data
+        console.warn("Supabase query failed, using fallback data:", error.message)
+        const fallbackEvents = getEventsByDateRange(startDate, endDate)
+        setEvents(fallbackEvents)
+        setUsingFallback(true)
+        return
+      }
 
       setEvents(data || [])
+      setUsingFallback(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred")
-      console.error("Error fetching events:", err)
+      console.warn("Error fetching events, using fallback data:", err)
+      // Use fallback data on any error
+      const fallbackEvents = getEventsByDateRange(startDate, endDate)
+      setEvents(fallbackEvents)
+      setUsingFallback(true)
+      setError(null) // Clear error since we have fallback data
     } finally {
       setLoading(false)
     }
@@ -37,6 +60,10 @@ export function useEvents(startDate: Date, endDate: Date) {
 
   const createEvent = async (eventData: Omit<Event, "id" | "created_at" | "updated_at">) => {
     try {
+      if (!isSupabaseConfigured) {
+        throw new Error("Supabase not configured - cannot create events")
+      }
+
       const { data, error } = await supabase.from("events").insert([eventData]).select().single()
 
       if (error) throw error
@@ -58,6 +85,10 @@ export function useEvents(startDate: Date, endDate: Date) {
 
   const updateEvent = async (id: string, updates: Partial<Event>) => {
     try {
+      if (!isSupabaseConfigured) {
+        throw new Error("Supabase not configured - cannot update events")
+      }
+
       const { data, error } = await supabase
         .from("events")
         .update({ ...updates, updated_at: new Date().toISOString() })
@@ -78,6 +109,10 @@ export function useEvents(startDate: Date, endDate: Date) {
 
   const deleteEvent = async (id: string) => {
     try {
+      if (!isSupabaseConfigured) {
+        throw new Error("Supabase not configured - cannot delete events")
+      }
+
       const { error } = await supabase.from("events").delete().eq("id", id)
 
       if (error) throw error
@@ -97,6 +132,8 @@ export function useEvents(startDate: Date, endDate: Date) {
     events,
     loading,
     error,
+    usingFallback,
+    isSupabaseConfigured,
     createEvent,
     updateEvent,
     deleteEvent,
