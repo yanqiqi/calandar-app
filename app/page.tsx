@@ -19,13 +19,16 @@ import {
   Loader2,
 } from "lucide-react"
 import { useEvents } from "@/hooks/useEvents"
+import { CreateEventModal } from "@/components/create-event-modal"
 import type { Event } from "@/lib/supabase"
+import { toast } from "@/hooks/use-toast"
 
 export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false)
   const [showAIPopup, setShowAIPopup] = useState(false)
   const [typedText, setTypedText] = useState("")
   const [isPlaying, setIsPlaying] = useState(false)
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
   // Calendar state
   const [currentView, setCurrentView] = useState("week")
@@ -219,6 +222,43 @@ export default function Home() {
     }
   }
 
+  // Handle create event
+  const handleCreateEvent = async (eventData: Omit<Event, "id" | "created_at" | "updated_at">) => {
+    try {
+      if (usingFallback) {
+        // Show a toast message for demo mode
+        toast({
+          title: "Demo Mode",
+          description: "Event creation is disabled in demo mode. Configure Supabase to enable full functionality.",
+          variant: "default",
+        })
+        return
+      }
+
+      await createEvent(eventData)
+      toast({
+        title: "Event Created",
+        description: `"${eventData.title}" has been successfully created.`,
+        variant: "default",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create event. Please try again.",
+        variant: "destructive",
+      })
+      throw error
+    }
+  }
+
+  const handleOpenCreateModal = () => {
+    setShowCreateModal(true)
+  }
+
+  const handleCloseCreateModal = () => {
+    setShowCreateModal(false)
+  }
+
   useEffect(() => {
     setIsLoaded(true)
 
@@ -330,7 +370,10 @@ export default function Home() {
           style={{ animationDelay: "0.4s" }}
         >
           <div>
-            <button className="mb-6 flex items-center justify-center gap-2 rounded-full bg-blue-500 px-4 py-3 text-white w-full">
+            <button
+              onClick={handleOpenCreateModal}
+              className="mb-6 flex items-center justify-center gap-2 rounded-full bg-blue-500 px-4 py-3 text-white w-full hover:bg-blue-600 transition-colors"
+            >
               <Plus className="h-5 w-5" />
               <span>Create</span>
             </button>
@@ -384,8 +427,11 @@ export default function Home() {
             </div>
           </div>
 
-          {/* New position for the big plus button */}
-          <button className="mt-6 flex items-center justify-center gap-2 rounded-full bg-blue-500 p-4 text-white w-14 h-14 self-start">
+          {/* Bottom Create Button */}
+          <button
+            onClick={handleOpenCreateModal}
+            className="mt-6 flex items-center justify-center gap-2 rounded-full bg-blue-500 p-4 text-white w-14 h-14 self-start hover:bg-blue-600 transition-colors"
+          >
             <Plus className="h-6 w-6" />
           </button>
         </div>
@@ -527,6 +573,14 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Create Event Modal */}
+        <CreateEventModal
+          isOpen={showCreateModal}
+          onClose={handleCloseCreateModal}
+          onCreateEvent={handleCreateEvent}
+          selectedDate={currentDate}
+        />
+
         {/* AI Popup */}
         {showAIPopup && (
           <div className="fixed bottom-8 right-8 z-20">
@@ -574,6 +628,7 @@ export default function Home() {
           </div>
         )}
 
+        {/* Event Detail Modal */}
         {selectedEvent && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className={`${selectedEvent.color} p-6 rounded-lg shadow-xl max-w-md w-full mx-4`}>
