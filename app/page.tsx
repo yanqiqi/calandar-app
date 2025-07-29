@@ -566,10 +566,14 @@ export default function Home() {
                       .filter((event) => event.day === dayIndex + 1)
                       .map((event, i) => {
                         const eventStyle = calculateEventStyle(event.startTime, event.endTime)
+                        const hasImage = event.image_url || event.thumbnail_url
+
                         return (
                           <div
                             key={event.id}
-                            className={`absolute ${event.color} rounded-md p-2 text-white text-xs shadow-md cursor-pointer transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg overflow-hidden`}
+                            className={`absolute rounded-md text-white text-xs shadow-md cursor-pointer transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg overflow-hidden ${
+                              hasImage ? "p-0" : `${event.color} p-2`
+                            }`}
                             style={{
                               ...eventStyle,
                               left: "4px",
@@ -577,20 +581,26 @@ export default function Home() {
                             }}
                             onClick={() => handleEventClick(event)}
                           >
-                            {event.thumbnail_url && (
-                              <div
-                                className="absolute top-1 right-1 w-8 h-6 rounded overflow-hidden cursor-pointer hover:scale-110 transition-transform"
-                                onClick={(e) => handleImageClick(event, e)}
-                              >
+                            {hasImage ? (
+                              // Image-only display
+                              <div className="relative w-full h-full">
                                 <img
-                                  src={event.thumbnail_url || "/placeholder.svg"}
-                                  alt={`${event.title} thumbnail`}
-                                  className="w-full h-full object-cover"
+                                  src={event.thumbnail_url || event.image_url || "/placeholder.svg"}
+                                  alt={event.title}
+                                  className="w-full h-full object-cover rounded-md"
                                 />
+                                {/* Optional: Add a subtle overlay with just the title */}
+                                <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-1 rounded-b-md">
+                                  <div className="font-medium text-xs text-white truncate">{event.title}</div>
+                                </div>
                               </div>
+                            ) : (
+                              // Text-only display (original format)
+                              <>
+                                <div className="font-medium">{event.title}</div>
+                                <div className="opacity-80 text-[10px] mt-1">{`${event.startTime} - ${event.endTime}`}</div>
+                              </>
                             )}
-                            <div className="font-medium pr-10">{event.title}</div>
-                            <div className="opacity-80 text-[10px] mt-1">{`${event.startTime} - ${event.endTime}`}</div>
                           </div>
                         )
                       })}
@@ -656,7 +666,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* Event Detail Modal */}
+        {/* Event Detail Modal - Updated to show different content based on image presence */}
         {selectedEvent && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className={`${selectedEvent.color} p-6 rounded-lg shadow-xl max-w-md w-full mx-4`}>
@@ -674,38 +684,43 @@ export default function Home() {
                 </div>
               )}
               <h3 className="text-2xl font-bold mb-4 text-white">{selectedEvent.title}</h3>
-              <div className="space-y-3 text-white">
-                <p className="flex items-center">
-                  <Clock className="mr-2 h-5 w-5" />
-                  {`${selectedEvent.startTime} - ${selectedEvent.endTime}`}
-                </p>
-                <p className="flex items-center">
-                  <MapPin className="mr-2 h-5 w-5" />
-                  {selectedEvent.location}
-                </p>
-                <p className="flex items-center">
-                  <Calendar className="mr-2 h-5 w-5" />
-                  {new Date(selectedEvent.date).toLocaleDateString("en-US", {
-                    weekday: "short",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </p>
-                <p className="flex items-start">
-                  <Users className="mr-2 h-5 w-5 mt-1" />
-                  <span>
-                    <strong>Attendees:</strong>
-                    <br />
-                    {selectedEvent.attendees?.join(", ") || "No attendees"}
-                  </span>
-                </p>
-                <p>
-                  <strong>Organizer:</strong> {selectedEvent.organizer}
-                </p>
-                <p>
-                  <strong>Description:</strong> {selectedEvent.description}
-                </p>
-              </div>
+
+              {/* Only show details if there's no image */}
+              {!selectedEvent.image_url && (
+                <div className="space-y-3 text-white">
+                  <p className="flex items-center">
+                    <Clock className="mr-2 h-5 w-5" />
+                    {`${selectedEvent.startTime} - ${selectedEvent.endTime}`}
+                  </p>
+                  <p className="flex items-center">
+                    <MapPin className="mr-2 h-5 w-5" />
+                    {selectedEvent.location}
+                  </p>
+                  <p className="flex items-center">
+                    <Calendar className="mr-2 h-5 w-5" />
+                    {new Date(selectedEvent.date).toLocaleDateString("en-US", {
+                      weekday: "short",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </p>
+                  <p className="flex items-start">
+                    <Users className="mr-2 h-5 w-5 mt-1" />
+                    <span>
+                      <strong>Attendees:</strong>
+                      <br />
+                      {selectedEvent.attendees?.join(", ") || "No attendees"}
+                    </span>
+                  </p>
+                  <p>
+                    <strong>Organizer:</strong> {selectedEvent.organizer}
+                  </p>
+                  <p>
+                    <strong>Description:</strong> {selectedEvent.description}
+                  </p>
+                </div>
+              )}
+
               <div className="mt-6 flex justify-end">
                 <button
                   className="bg-white text-gray-800 px-4 py-2 rounded hover:bg-gray-100 transition-colors"
@@ -717,6 +732,7 @@ export default function Home() {
             </div>
           </div>
         )}
+
         {/* Image Viewer */}
         <ImageViewer
           isOpen={showImageViewer}
