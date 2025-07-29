@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect, useMemo } from "react"
 import Image from "next/image"
 import {
@@ -22,6 +24,7 @@ import { useEvents } from "@/hooks/useEvents"
 import { CreateEventModal } from "@/components/create-event-modal"
 import type { Event } from "@/lib/supabase"
 import { toast } from "@/hooks/use-toast"
+import { ImageViewer } from "@/components/image-viewer"
 
 export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false)
@@ -29,6 +32,8 @@ export default function Home() {
   const [typedText, setTypedText] = useState("")
   const [isPlaying, setIsPlaying] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showImageViewer, setShowImageViewer] = useState(false)
+  const [viewerImage, setViewerImage] = useState<{ url: string; title: string } | null>(null)
 
   // Calendar state
   const [currentView, setCurrentView] = useState("week")
@@ -223,7 +228,10 @@ export default function Home() {
   }
 
   // Handle create event
-  const handleCreateEvent = async (eventData: Omit<Event, "id" | "created_at" | "updated_at">) => {
+  const handleCreateEvent = async (
+    eventData: Omit<Event, "id" | "created_at" | "updated_at">,
+    imageData?: { file: File; thumbnail: Blob; compressed: Blob },
+  ) => {
     try {
       if (usingFallback) {
         // Show a toast message for demo mode
@@ -235,7 +243,7 @@ export default function Home() {
         return
       }
 
-      await createEvent(eventData)
+      await createEvent(eventData, imageData)
       toast({
         title: "Event Created",
         description: `"${eventData.title}" has been successfully created.`,
@@ -290,6 +298,14 @@ export default function Home() {
 
   const handleEventClick = (event) => {
     setSelectedEvent(event)
+  }
+
+  const handleImageClick = (event: Event, e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent event card click
+    if (event.image_url) {
+      setViewerImage({ url: event.image_url, title: event.title })
+      setShowImageViewer(true)
+    }
   }
 
   // Sample calendar days for the week view
@@ -553,7 +569,7 @@ export default function Home() {
                         return (
                           <div
                             key={event.id}
-                            className={`absolute ${event.color} rounded-md p-2 text-white text-xs shadow-md cursor-pointer transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg`}
+                            className={`absolute ${event.color} rounded-md p-2 text-white text-xs shadow-md cursor-pointer transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg overflow-hidden`}
                             style={{
                               ...eventStyle,
                               left: "4px",
@@ -561,7 +577,19 @@ export default function Home() {
                             }}
                             onClick={() => handleEventClick(event)}
                           >
-                            <div className="font-medium">{event.title}</div>
+                            {event.thumbnail_url && (
+                              <div
+                                className="absolute top-1 right-1 w-8 h-6 rounded overflow-hidden cursor-pointer hover:scale-110 transition-transform"
+                                onClick={(e) => handleImageClick(event, e)}
+                              >
+                                <img
+                                  src={event.thumbnail_url || "/placeholder.svg"}
+                                  alt={`${event.title} thumbnail`}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
+                            <div className="font-medium pr-10">{event.title}</div>
                             <div className="opacity-80 text-[10px] mt-1">{`${event.startTime} - ${event.endTime}`}</div>
                           </div>
                         )
@@ -632,6 +660,19 @@ export default function Home() {
         {selectedEvent && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className={`${selectedEvent.color} p-6 rounded-lg shadow-xl max-w-md w-full mx-4`}>
+              {selectedEvent.image_url && (
+                <div className="mb-4">
+                  <img
+                    src={selectedEvent.image_url || "/placeholder.svg"}
+                    alt={selectedEvent.title}
+                    className="w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => {
+                      setViewerImage({ url: selectedEvent.image_url!, title: selectedEvent.title })
+                      setShowImageViewer(true)
+                    }}
+                  />
+                </div>
+              )}
               <h3 className="text-2xl font-bold mb-4 text-white">{selectedEvent.title}</h3>
               <div className="space-y-3 text-white">
                 <p className="flex items-center">
@@ -676,6 +717,13 @@ export default function Home() {
             </div>
           </div>
         )}
+        {/* Image Viewer */}
+        <ImageViewer
+          isOpen={showImageViewer}
+          onClose={() => setShowImageViewer(false)}
+          imageUrl={viewerImage?.url || ""}
+          title={viewerImage?.title || ""}
+        />
       </main>
     </div>
   )

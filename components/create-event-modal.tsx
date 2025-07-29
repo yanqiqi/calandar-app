@@ -8,12 +8,16 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { ImageUpload } from "@/components/image-upload"
 import type { Event } from "@/lib/supabase"
 
 interface CreateEventModalProps {
   isOpen: boolean
   onClose: () => void
-  onCreateEvent: (eventData: Omit<Event, "id" | "created_at" | "updated_at">) => Promise<void>
+  onCreateEvent: (
+    eventData: Omit<Event, "id" | "created_at" | "updated_at">,
+    imageData?: { file: File; thumbnail: Blob; compressed: Blob },
+  ) => Promise<void>
   selectedDate?: Date
 }
 
@@ -42,6 +46,7 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
     attendees: "",
     color: "bg-blue-500",
   })
+  const [imageData, setImageData] = useState<{ file: File; thumbnail: Blob; compressed: Blob } | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -51,6 +56,14 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: "" }))
     }
+  }
+
+  const handleImageSelect = (data: { file: File; thumbnail: Blob; compressed: Blob }) => {
+    setImageData(data)
+  }
+
+  const handleImageRemove = () => {
+    setImageData(null)
   }
 
   const validateForm = () => {
@@ -97,9 +110,12 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
           .split(",")
           .map((attendee) => attendee.trim())
           .filter((attendee) => attendee.length > 0),
+        image_url: null,
+        thumbnail_url: null,
+        image_filename: null,
       }
 
-      await onCreateEvent(eventData)
+      await onCreateEvent(eventData, imageData || undefined)
 
       // Reset form
       setFormData({
@@ -113,6 +129,7 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
         attendees: "",
         color: "bg-blue-500",
       })
+      setImageData(null)
 
       onClose()
     } catch (error) {
@@ -270,6 +287,9 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
             />
             <p className="text-xs text-gray-500">Separate multiple attendees with commas</p>
           </div>
+
+          {/* Image Upload */}
+          <ImageUpload onImageSelect={handleImageSelect} onImageRemove={handleImageRemove} disabled={isSubmitting} />
 
           {/* Color Selection */}
           <div className="space-y-2">

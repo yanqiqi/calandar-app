@@ -32,6 +32,13 @@ const createMockClient = () => ({
       eq: () => Promise.resolve({ error: new Error("Supabase not configured") }),
     }),
   }),
+  storage: {
+    from: () => ({
+      upload: () => Promise.resolve({ data: null, error: new Error("Supabase not configured") }),
+      getPublicUrl: () => ({ data: { publicUrl: "" } }),
+      remove: () => Promise.resolve({ error: new Error("Supabase not configured") }),
+    }),
+  },
 })
 
 export const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : createMockClient()
@@ -49,6 +56,9 @@ export type Event = {
   color: string
   organizer: string
   attendees: string[]
+  image_url?: string | null
+  thumbnail_url?: string | null
+  image_filename?: string | null
   created_at: string
   updated_at: string
 }
