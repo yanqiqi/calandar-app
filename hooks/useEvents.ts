@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { supabase, isSupabaseConfigured, type Event } from "@/lib/supabase"
+import { supabase, isSupabaseConfigured, initializeStorage, type Event } from "@/lib/supabase"
 import { getEventsByDateRange } from "@/lib/fallback-events"
 
 export function useEvents(startDate: Date, endDate: Date) {
@@ -63,19 +63,34 @@ export function useEvents(startDate: Date, endDate: Date) {
       throw new Error("Supabase not configured - cannot upload images")
     }
 
+    // Initialize storage if needed
+    await initializeStorage()
+
     const timestamp = Date.now()
     const fileExt = filename.split(".").pop()
     const fileName = `${timestamp}-${Math.random().toString(36).substring(2)}.${fileExt}`
     const filePath = `${folder}/${fileName}`
 
-    const { data, error } = await supabase.storage.from("event-images").upload(filePath, file)
+    console.log("Uploading image:", { filePath, fileSize: file.size, fileType: file.type })
 
-    if (error) throw error
+    const { data, error } = await supabase.storage.from("event-images").upload(filePath, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: file.type,
+    })
+
+    if (error) {
+      console.error("Upload error:", error)
+      throw new Error(`Failed to upload image: ${error.message}`)
+    }
+
+    console.log("Upload successful:", data)
 
     const {
       data: { publicUrl },
     } = supabase.storage.from("event-images").getPublicUrl(filePath)
 
+    console.log("Public URL:", publicUrl)
     return publicUrl
   }
 
@@ -92,22 +107,39 @@ export function useEvents(startDate: Date, endDate: Date) {
 
       // Upload images if provided
       if (imageData) {
-        const [imageUrl, thumbnailUrl] = await Promise.all([
-          uploadImage(imageData.compressed, imageData.file.name, "event-images"),
-          uploadImage(imageData.thumbnail, `thumb_${imageData.file.name}`, "event-thumbnails"),
-        ])
+        console.log("Uploading images for event:", eventData.title)
 
-        finalEventData = {
-          ...finalEventData,
-          image_url: imageUrl,
-          thumbnail_url: thumbnailUrl,
-          image_filename: imageData.file.name,
+        try {
+          const [imageUrl, thumbnailUrl] = await Promise.all([
+            uploadImage(imageData.compressed, imageData.file.name, "images"),
+            uploadImage(imageData.thumbnail, `thumb_${imageData.file.name}`, "thumbnails"),
+          ])
+
+          finalEventData = {
+            ...finalEventData,
+            image_url: imageUrl,
+            thumbnail_url: thumbnailUrl,
+            image_filename: imageData.file.name,
+          }
+
+          console.log("Images uploaded successfully:", { imageUrl, thumbnailUrl })
+        } catch (uploadError) {
+          console.error("Image upload failed:", uploadError)
+          // Continue without images if upload fails
+          console.warn("Continuing event creation without images")
         }
       }
 
+      console.log("Creating event with data:", finalEventData)
+
       const { data, error } = await supabase.from("events").insert([finalEventData]).select().single()
 
-      if (error) throw error
+      if (error) {
+        console.error("Database insert error:", error)
+        throw new Error(`Failed to create event: ${error.message}`)
+      }
+
+      console.log("Event created successfully:", data)
 
       setEvents((prev) =>
         [...prev, data].sort((a, b) => {
@@ -119,8 +151,10 @@ export function useEvents(startDate: Date, endDate: Date) {
 
       return data
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create event")
-      throw err
+      const errorMessage = err instanceof Error ? err.message : "Failed to create event"
+      console.error("Create event error:", err)
+      setError(errorMessage)
+      throw new Error(errorMessage)
     }
   }
 
@@ -167,11 +201,12 @@ export function useEvents(startDate: Date, endDate: Date) {
           const imagePath = eventToDelete.image_url.split("/").pop()
           const thumbnailPath = eventToDelete.thumbnail_url?.split("/").pop()
 
-          if (imagePath) {
-            await supabase.storage.from("event-images").remove([`event-images/${imagePath}`])
-          }
-          if (thumbnailPath) {
-            await supabase.storage.from("event-images").remove([`event-thumbnails/${thumbnailPath}`])
+          const filesToDelete = []
+          if (imagePath) filesToDelete.push(`images/${imagePath}`)
+          if (thumbnailPath) filesToDelete.push(`thumbnails/${thumbnailPath}`)
+
+          if (filesToDelete.length > 0) {
+            await supabase.storage.from("event-images").remove(filesToDelete)
           }
         } catch (storageError) {
           console.warn("Failed to delete images from storage:", storageError)

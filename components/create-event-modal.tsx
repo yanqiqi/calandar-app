@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import { X, Calendar, Clock, MapPin, Users, FileText, User, Palette } from "lucide-react"
+import { X, Calendar, Clock, MapPin, Users, FileText, User, Palette, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -49,6 +49,7 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
   const [imageData, setImageData] = useState<{ file: File; thumbnail: Blob; compressed: Blob } | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -56,10 +57,17 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: "" }))
     }
+    // Clear submit error when user makes changes
+    if (submitError) {
+      setSubmitError(null)
+    }
   }
 
   const handleImageSelect = (data: { file: File; thumbnail: Blob; compressed: Blob }) => {
     setImageData(data)
+    if (submitError) {
+      setSubmitError(null)
+    }
   }
 
   const handleImageRemove = () => {
@@ -102,6 +110,7 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
     }
 
     setIsSubmitting(true)
+    setSubmitError(null)
 
     try {
       const eventData = {
@@ -130,10 +139,14 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
         color: "bg-blue-500",
       })
       setImageData(null)
+      setErrors({})
+      setSubmitError(null)
 
       onClose()
     } catch (error) {
       console.error("Failed to create event:", error)
+      const errorMessage = error instanceof Error ? error.message : "Failed to create event. Please try again."
+      setSubmitError(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -141,6 +154,9 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
 
   const handleClose = () => {
     if (!isSubmitting) {
+      // Reset form state when closing
+      setErrors({})
+      setSubmitError(null)
       onClose()
     }
   }
@@ -164,6 +180,14 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Submit Error */}
+          {submitError && (
+            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              <span>{submitError}</span>
+            </div>
+          )}
+
           {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="title" className="text-sm font-medium text-gray-700 flex items-center gap-2">
