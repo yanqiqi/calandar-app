@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import Image from "next/image"
 import {
   ChevronLeft,
@@ -16,7 +16,10 @@ import {
   Pause,
   Sparkles,
   X,
+  Loader2,
 } from "lucide-react"
+import { useEvents } from "@/hooks/useEvents"
+import type { Event } from "@/lib/supabase"
 
 export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false)
@@ -27,7 +30,36 @@ export default function Home() {
   // Calendar state
   const [currentView, setCurrentView] = useState("week")
   const [currentDate, setCurrentDate] = useState(new Date(2025, 2, 5)) // March 5, 2025
-  const [selectedEvent, setSelectedEvent] = useState(null)
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
+
+  // Calculate date range based on current view and date
+  const dateRange = useMemo(() => {
+    const start = new Date(currentDate)
+    const end = new Date(currentDate)
+
+    switch (currentView) {
+      case "day":
+        // Same day
+        break
+      case "week":
+        // Start of week (Sunday) to end of week (Saturday)
+        const dayOfWeek = start.getDay()
+        start.setDate(start.getDate() - dayOfWeek)
+        end.setDate(start.getDate() + 6)
+        break
+      case "month":
+        // Start of month to end of month
+        start.setDate(1)
+        end.setMonth(end.getMonth() + 1)
+        end.setDate(0)
+        break
+    }
+
+    return { start, end }
+  }, [currentDate, currentView])
+
+  // Use the events hook with dynamic date range
+  const { events, loading, error, createEvent, updateEvent, deleteEvent } = useEvents(dateRange.start, dateRange.end)
 
   // Get current month and format it
   const getCurrentMonth = () => {
@@ -75,6 +107,25 @@ export default function Home() {
     }
 
     return days
+  }
+
+  // Convert database events to display format
+  const getEventsForWeekView = () => {
+    const startOfWeek = new Date(currentDate)
+    const day = startOfWeek.getDay()
+    startOfWeek.setDate(startOfWeek.getDate() - day)
+
+    return events.map((event) => {
+      const eventDate = new Date(event.date)
+      const dayOfWeek = eventDate.getDay()
+
+      return {
+        ...event,
+        day: dayOfWeek + 1, // Convert to 1-based index for display
+        startTime: event.start_time,
+        endTime: event.end_time,
+      }
+    })
   }
 
   // Navigation functions
@@ -200,190 +251,6 @@ export default function Home() {
     setSelectedEvent(event)
   }
 
-  // Updated sample calendar events with dynamic dates
-  const events = [
-    {
-      id: 1,
-      title: "Team Meeting",
-      startTime: "09:00",
-      endTime: "10:00",
-      color: "bg-blue-500",
-      day: 1,
-      description: "Weekly team sync-up",
-      location: "Conference Room A",
-      attendees: ["John Doe", "Jane Smith", "Bob Johnson"],
-      organizer: "Alice Brown",
-    },
-    {
-      id: 2,
-      title: "Lunch with Sarah",
-      startTime: "12:30",
-      endTime: "13:30",
-      color: "bg-green-500",
-      day: 1,
-      description: "Discuss project timeline",
-      location: "Cafe Nero",
-      attendees: ["Sarah Lee"],
-      organizer: "You",
-    },
-    {
-      id: 3,
-      title: "Project Review",
-      startTime: "14:00",
-      endTime: "15:30",
-      color: "bg-purple-500",
-      day: 3,
-      description: "Q2 project progress review",
-      location: "Meeting Room 3",
-      attendees: ["Team Alpha", "Stakeholders"],
-      organizer: "Project Manager",
-    },
-    {
-      id: 4,
-      title: "Client Call",
-      startTime: "10:00",
-      endTime: "11:00",
-      color: "bg-yellow-500",
-      day: 2,
-      description: "Quarterly review with major client",
-      location: "Zoom Meeting",
-      attendees: ["Client Team", "Sales Team"],
-      organizer: "Account Manager",
-    },
-    {
-      id: 5,
-      title: "Team Brainstorm",
-      startTime: "13:00",
-      endTime: "14:30",
-      color: "bg-indigo-500",
-      day: 4,
-      description: "Ideation session for new product features",
-      location: "Creative Space",
-      attendees: ["Product Team", "Design Team"],
-      organizer: "Product Owner",
-    },
-    {
-      id: 6,
-      title: "Product Demo",
-      startTime: "11:00",
-      endTime: "12:00",
-      color: "bg-pink-500",
-      day: 5,
-      description: "Showcase new features to stakeholders",
-      location: "Demo Room",
-      attendees: ["Stakeholders", "Dev Team"],
-      organizer: "Tech Lead",
-    },
-    {
-      id: 7,
-      title: "Marketing Meeting",
-      startTime: "13:00",
-      endTime: "14:00",
-      color: "bg-teal-500",
-      day: 6,
-      description: "Discuss Q3 marketing strategy",
-      location: "Marketing Office",
-      attendees: ["Marketing Team"],
-      organizer: "Marketing Director",
-    },
-    {
-      id: 8,
-      title: "Code Review",
-      startTime: "15:00",
-      endTime: "16:00",
-      color: "bg-cyan-500",
-      day: 7,
-      description: "Review pull requests for new feature",
-      location: "Dev Area",
-      attendees: ["Dev Team"],
-      organizer: "Senior Developer",
-    },
-    {
-      id: 9,
-      title: "Morning Standup",
-      startTime: "08:30",
-      endTime: "09:30",
-      color: "bg-blue-400",
-      day: 2,
-      description: "Daily team standup",
-      location: "Slack Huddle",
-      attendees: ["Development Team"],
-      organizer: "Scrum Master",
-    },
-    {
-      id: 10,
-      title: "Design Review",
-      startTime: "14:30",
-      endTime: "15:45",
-      color: "bg-purple-400",
-      day: 5,
-      description: "Review new UI designs",
-      location: "Design Lab",
-      attendees: ["UX Team", "Product Manager"],
-      organizer: "Lead Designer",
-    },
-    {
-      id: 11,
-      title: "Investor Meeting",
-      startTime: "10:30",
-      endTime: "12:00",
-      color: "bg-red-400",
-      day: 7,
-      description: "Quarterly investor update",
-      location: "Board Room",
-      attendees: ["Executive Team", "Investors"],
-      organizer: "CEO",
-    },
-    {
-      id: 12,
-      title: "Team Training",
-      startTime: "09:30",
-      endTime: "11:30",
-      color: "bg-green-400",
-      day: 4,
-      description: "New tool onboarding session",
-      location: "Training Room",
-      attendees: ["All Departments"],
-      organizer: "HR",
-    },
-    {
-      id: 13,
-      title: "Budget Review",
-      startTime: "13:30",
-      endTime: "15:00",
-      color: "bg-yellow-400",
-      day: 3,
-      description: "Quarterly budget analysis",
-      location: "Finance Office",
-      attendees: ["Finance Team", "Department Heads"],
-      organizer: "CFO",
-    },
-    {
-      id: 14,
-      title: "Client Presentation",
-      startTime: "11:00",
-      endTime: "12:30",
-      color: "bg-orange-400",
-      day: 6,
-      description: "Present new project proposal",
-      location: "Client Office",
-      attendees: ["Sales Team", "Client Representatives"],
-      organizer: "Account Executive",
-    },
-    {
-      id: 15,
-      title: "Product Planning",
-      startTime: "14:00",
-      endTime: "15:30",
-      color: "bg-pink-400",
-      day: 1,
-      description: "Roadmap discussion for Q3",
-      location: "Strategy Room",
-      attendees: ["Product Team", "Engineering Leads"],
-      organizer: "Product Manager",
-    },
-  ]
-
   // Sample calendar days for the week view
   const weekDays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
   const weekDates = getWeekDates()
@@ -413,6 +280,9 @@ export default function Home() {
     setIsPlaying(!isPlaying)
     // Here you would typically also control the actual audio playback
   }
+
+  // Get formatted events for display
+  const displayEvents = getEventsForWeekView()
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
@@ -550,6 +420,7 @@ export default function Home() {
               <h2 className="text-xl font-semibold text-white">
                 {currentView === "month" ? getCurrentMonth() : getCurrentDateString()}
               </h2>
+              {loading && <Loader2 className="h-5 w-5 text-white animate-spin" />}
             </div>
 
             <div className="flex items-center gap-2 rounded-md p-1">
@@ -573,6 +444,13 @@ export default function Home() {
               </button>
             </div>
           </div>
+
+          {/* Error Display */}
+          {error && (
+            <div className="mx-4 mt-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-white text-sm">
+              Error loading events: {error}
+            </div>
+          )}
 
           {/* Week View */}
           <div className="flex-1 overflow-auto p-4">
@@ -611,13 +489,13 @@ export default function Home() {
                     ))}
 
                     {/* Events */}
-                    {events
+                    {displayEvents
                       .filter((event) => event.day === dayIndex + 1)
                       .map((event, i) => {
                         const eventStyle = calculateEventStyle(event.startTime, event.endTime)
                         return (
                           <div
-                            key={i}
+                            key={event.id}
                             className={`absolute ${event.color} rounded-md p-2 text-white text-xs shadow-md cursor-pointer transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg`}
                             style={{
                               ...eventStyle,
@@ -700,14 +578,18 @@ export default function Home() {
                 </p>
                 <p className="flex items-center">
                   <Calendar className="mr-2 h-5 w-5" />
-                  {`${weekDays[selectedEvent.day - 1]}, ${weekDates[selectedEvent.day - 1]} ${getCurrentMonth()}`}
+                  {new Date(selectedEvent.date).toLocaleDateString("en-US", {
+                    weekday: "short",
+                    month: "long",
+                    day: "numeric",
+                  })}
                 </p>
                 <p className="flex items-start">
                   <Users className="mr-2 h-5 w-5 mt-1" />
                   <span>
                     <strong>Attendees:</strong>
                     <br />
-                    {selectedEvent.attendees.join(", ") || "No attendees"}
+                    {selectedEvent.attendees?.join(", ") || "No attendees"}
                   </span>
                 </p>
                 <p>
