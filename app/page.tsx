@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import type React from "react"
+
+import { useState, useEffect, useMemo } from "react"
 import Image from "next/image"
 import {
   ChevronLeft,
@@ -16,13 +18,255 @@ import {
   Pause,
   Sparkles,
   X,
+  Loader2,
 } from "lucide-react"
+import { useEvents } from "@/hooks/useEvents"
+import { CreateEventModal } from "@/components/create-event-modal"
+import type { Event } from "@/lib/supabase"
+import { toast } from "@/hooks/use-toast"
+import { ImageViewer } from "@/components/image-viewer"
 
 export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false)
   const [showAIPopup, setShowAIPopup] = useState(false)
   const [typedText, setTypedText] = useState("")
   const [isPlaying, setIsPlaying] = useState(false)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showImageViewer, setShowImageViewer] = useState(false)
+  const [viewerImage, setViewerImage] = useState<{ url: string; title: string } | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Calendar state
+  const [currentView, setCurrentView] = useState("week")
+  const [currentDate, setCurrentDate] = useState(new Date(2025, 2, 5)) // March 5, 2025
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
+
+  // Calculate date range based on current view and date
+  const dateRange = useMemo(() => {
+    const start = new Date(currentDate)
+    const end = new Date(currentDate)
+
+    switch (currentView) {
+      case "day":
+        // Same day
+        break
+      case "week":
+        // Start of week (Sunday) to end of week (Saturday)
+        const dayOfWeek = start.getDay()
+        start.setDate(start.getDate() - dayOfWeek)
+        end.setDate(start.getDate() + 6)
+        break
+      case "month":
+        // Start of month to end of month
+        start.setDate(1)
+        end.setMonth(end.getMonth() + 1)
+        end.setDate(0)
+        break
+    }
+
+    return { start, end }
+  }, [currentDate, currentView])
+
+  // Use the events hook with dynamic date range
+  const { events, loading, error, usingFallback, isSupabaseConfigured, createEvent, updateEvent, deleteEvent } =
+    useEvents(dateRange.start, dateRange.end)
+
+  // Get current month and format it
+  const getCurrentMonth = () => {
+    return currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+  }
+
+  const getCurrentDateString = () => {
+    return currentDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })
+  }
+
+  // Get week dates based on current date
+  const getWeekDates = () => {
+    const startOfWeek = new Date(currentDate)
+    const day = startOfWeek.getDay()
+    startOfWeek.setDate(startOfWeek.getDate() - day)
+
+    const weekDates = []
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(startOfWeek)
+      date.setDate(startOfWeek.getDate() + i)
+      weekDates.push(date.getDate())
+    }
+    return weekDates
+  }
+
+  // Get mini calendar days
+  const getMiniCalendarDays = () => {
+    const year = currentDate.getFullYear()
+    const month = currentDate.getMonth()
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const firstDayOfWeek = firstDay.getDay()
+    const daysInMonth = lastDay.getDate()
+
+    const days = []
+
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < firstDayOfWeek; i++) {
+      days.push(null)
+    }
+
+    // Add days of the month
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push(i)
+    }
+
+    return days
+  }
+
+  // Convert database events to display format
+  const getEventsForWeekView = () => {
+    const startOfWeek = new Date(currentDate)
+    const day = startOfWeek.getDay()
+    startOfWeek.setDate(startOfWeek.getDate() - day)
+
+    return events.map((event) => {
+      const eventDate = new Date(event.date)
+      const dayOfWeek = eventDate.getDay()
+
+      return {
+        ...event,
+        day: dayOfWeek + 1, // Convert to 1-based index for display
+        startTime: event.start_time,
+        endTime: event.end_time,
+      }
+    })
+  }
+
+  // Navigation functions
+  const goToPreviousMonth = () => {
+    setCurrentDate((prev) => {
+      const newDate = new Date(prev)
+      newDate.setMonth(prev.getMonth() - 1)
+      return newDate
+    })
+  }
+
+  const goToNextMonth = () => {
+    setCurrentDate((prev) => {
+      const newDate = new Date(prev)
+      newDate.setMonth(prev.getMonth() + 1)
+      return newDate
+    })
+  }
+
+  const goToPreviousWeek = () => {
+    setCurrentDate((prev) => {
+      const newDate = new Date(prev)
+      newDate.setDate(prev.getDate() - 7)
+      return newDate
+    })
+  }
+
+  const goToNextWeek = () => {
+    setCurrentDate((prev) => {
+      const newDate = new Date(prev)
+      newDate.setDate(prev.getDate() + 7)
+      return newDate
+    })
+  }
+
+  const goToPreviousDay = () => {
+    setCurrentDate((prev) => {
+      const newDate = new Date(prev)
+      newDate.setDate(prev.getDate() - 1)
+      return newDate
+    })
+  }
+
+  const goToNextDay = () => {
+    setCurrentDate((prev) => {
+      const newDate = new Date(prev)
+      newDate.setDate(prev.getDate() + 1)
+      return newDate
+    })
+  }
+
+  const goToToday = () => {
+    setCurrentDate(new Date(2025, 2, 5)) // March 5, 2025 (keeping original date)
+  }
+
+  const handleMiniCalendarDayClick = (day) => {
+    if (day) {
+      const newDate = new Date(currentDate)
+      newDate.setDate(day)
+      setCurrentDate(newDate)
+    }
+  }
+
+  // Navigation handlers based on current view
+  const handlePrevious = () => {
+    switch (currentView) {
+      case "day":
+        goToPreviousDay()
+        break
+      case "week":
+        goToPreviousWeek()
+        break
+      case "month":
+        goToPreviousMonth()
+        break
+    }
+  }
+
+  const handleNext = () => {
+    switch (currentView) {
+      case "day":
+        goToNextDay()
+        break
+      case "week":
+        goToNextWeek()
+        break
+      case "month":
+        goToNextMonth()
+        break
+    }
+  }
+
+  // Handle create event
+  const handleCreateEvent = async (
+    eventData: Omit<Event, "id" | "created_at" | "updated_at">,
+    imageData?: { file: File; thumbnail: Blob; compressed: Blob },
+  ) => {
+    try {
+      if (usingFallback) {
+        // Show a toast message for demo mode
+        toast({
+          title: "Demo Mode",
+          description: "Event creation is disabled in demo mode. Configure Supabase to enable full functionality.",
+          variant: "default",
+        })
+        return
+      }
+
+      await createEvent(eventData, imageData)
+      toast({
+        title: "Event Created",
+        description: `"${eventData.title}" has been successfully created.`,
+        variant: "default",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create event. Please try again.",
+        variant: "destructive",
+      })
+      throw error
+    }
+  }
+
+  const handleOpenCreateModal = () => {
+    setShowCreateModal(true)
+  }
+
+  const handleCloseCreateModal = () => {
+    setShowCreateModal(false)
+  }
 
   useEffect(() => {
     setIsLoaded(true)
@@ -53,219 +297,73 @@ export default function Home() {
     }
   }, [showAIPopup])
 
-  const [currentView, setCurrentView] = useState("week")
-  const [currentMonth, setCurrentMonth] = useState("March 2025")
-  const [currentDate, setCurrentDate] = useState("March 5")
-  const [selectedEvent, setSelectedEvent] = useState(null)
-
   const handleEventClick = (event) => {
     setSelectedEvent(event)
   }
 
-  // Updated sample calendar events with all events before 4 PM
-  const events = [
-    {
-      id: 1,
-      title: "Team Meeting",
-      startTime: "09:00",
-      endTime: "10:00",
-      color: "bg-blue-500",
-      day: 1,
-      description: "Weekly team sync-up",
-      location: "Conference Room A",
-      attendees: ["John Doe", "Jane Smith", "Bob Johnson"],
-      organizer: "Alice Brown",
-    },
-    {
-      id: 2,
-      title: "Lunch with Sarah",
-      startTime: "12:30",
-      endTime: "13:30",
-      color: "bg-green-500",
-      day: 1,
-      description: "Discuss project timeline",
-      location: "Cafe Nero",
-      attendees: ["Sarah Lee"],
-      organizer: "You",
-    },
-    {
-      id: 3,
-      title: "Project Review",
-      startTime: "14:00",
-      endTime: "15:30",
-      color: "bg-purple-500",
-      day: 3,
-      description: "Q2 project progress review",
-      location: "Meeting Room 3",
-      attendees: ["Team Alpha", "Stakeholders"],
-      organizer: "Project Manager",
-    },
-    {
-      id: 4,
-      title: "Client Call",
-      startTime: "10:00",
-      endTime: "11:00",
-      color: "bg-yellow-500",
-      day: 2,
-      description: "Quarterly review with major client",
-      location: "Zoom Meeting",
-      attendees: ["Client Team", "Sales Team"],
-      organizer: "Account Manager",
-    },
-    {
-      id: 5,
-      title: "Team Brainstorm",
-      startTime: "13:00",
-      endTime: "14:30",
-      color: "bg-indigo-500",
-      day: 4,
-      description: "Ideation session for new product features",
-      location: "Creative Space",
-      attendees: ["Product Team", "Design Team"],
-      organizer: "Product Owner",
-    },
-    {
-      id: 6,
-      title: "Product Demo",
-      startTime: "11:00",
-      endTime: "12:00",
-      color: "bg-pink-500",
-      day: 5,
-      description: "Showcase new features to stakeholders",
-      location: "Demo Room",
-      attendees: ["Stakeholders", "Dev Team"],
-      organizer: "Tech Lead",
-    },
-    {
-      id: 7,
-      title: "Marketing Meeting",
-      startTime: "13:00",
-      endTime: "14:00",
-      color: "bg-teal-500",
-      day: 6,
-      description: "Discuss Q3 marketing strategy",
-      location: "Marketing Office",
-      attendees: ["Marketing Team"],
-      organizer: "Marketing Director",
-    },
-    {
-      id: 8,
-      title: "Code Review",
-      startTime: "15:00",
-      endTime: "16:00",
-      color: "bg-cyan-500",
-      day: 7,
-      description: "Review pull requests for new feature",
-      location: "Dev Area",
-      attendees: ["Dev Team"],
-      organizer: "Senior Developer",
-    },
-    {
-      id: 9,
-      title: "Morning Standup",
-      startTime: "08:30",
-      endTime: "09:30", // Changed from "09:00" to "09:30"
-      color: "bg-blue-400",
-      day: 2,
-      description: "Daily team standup",
-      location: "Slack Huddle",
-      attendees: ["Development Team"],
-      organizer: "Scrum Master",
-    },
-    {
-      id: 10,
-      title: "Design Review",
-      startTime: "14:30",
-      endTime: "15:45",
-      color: "bg-purple-400",
-      day: 5,
-      description: "Review new UI designs",
-      location: "Design Lab",
-      attendees: ["UX Team", "Product Manager"],
-      organizer: "Lead Designer",
-    },
-    {
-      id: 11,
-      title: "Investor Meeting",
-      startTime: "10:30",
-      endTime: "12:00",
-      color: "bg-red-400",
-      day: 7,
-      description: "Quarterly investor update",
-      location: "Board Room",
-      attendees: ["Executive Team", "Investors"],
-      organizer: "CEO",
-    },
-    {
-      id: 12,
-      title: "Team Training",
-      startTime: "09:30",
-      endTime: "11:30",
-      color: "bg-green-400",
-      day: 4,
-      description: "New tool onboarding session",
-      location: "Training Room",
-      attendees: ["All Departments"],
-      organizer: "HR",
-    },
-    {
-      id: 13,
-      title: "Budget Review",
-      startTime: "13:30",
-      endTime: "15:00",
-      color: "bg-yellow-400",
-      day: 3,
-      description: "Quarterly budget analysis",
-      location: "Finance Office",
-      attendees: ["Finance Team", "Department Heads"],
-      organizer: "CFO",
-    },
-    {
-      id: 14,
-      title: "Client Presentation",
-      startTime: "11:00",
-      endTime: "12:30",
-      color: "bg-orange-400",
-      day: 6,
-      description: "Present new project proposal",
-      location: "Client Office",
-      attendees: ["Sales Team", "Client Representatives"],
-      organizer: "Account Executive",
-    },
-    {
-      id: 15,
-      title: "Product Planning",
-      startTime: "14:00",
-      endTime: "15:30",
-      color: "bg-pink-400",
-      day: 1,
-      description: "Roadmap discussion for Q3",
-      location: "Strategy Room",
-      attendees: ["Product Team", "Engineering Leads"],
-      organizer: "Product Manager",
-    },
-  ]
+  const handleImageClick = (event: Event, e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent event card click
+    if (event.image_url) {
+      setViewerImage({ url: event.image_url, title: event.title })
+      setShowImageViewer(true)
+    }
+  }
 
   // Sample calendar days for the week view
   const weekDays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
-  const weekDates = [3, 4, 5, 6, 7, 8, 9]
-  const timeSlots = Array.from({ length: 9 }, (_, i) => i + 8) // 8 AM to 4 PM
+  const weekDates = getWeekDates()
 
-  // Helper function to calculate event position and height
-  const calculateEventStyle = (startTime, endTime) => {
-    const start = Number.parseInt(startTime.split(":")[0]) + Number.parseInt(startTime.split(":")[1]) / 60
-    const end = Number.parseInt(endTime.split(":")[0]) + Number.parseInt(endTime.split(":")[1]) / 60
-    const top = (start - 8) * 80 // 80px per hour
-    const height = (end - start) * 80
+  // 新的时间段定义：早中晚
+  const timeSlots = [
+    { name: "早上", label: "Morning", time: "6:00-12:00", value: "morning" },
+    { name: "下午", label: "Afternoon", time: "12:00-18:00", value: "afternoon" },
+    { name: "晚上", label: "Evening", time: "18:00-24:00", value: "evening" },
+  ]
+
+  // Helper function to determine which time slot an event belongs to
+  const getEventTimeSlot = (startTime: string) => {
+    const hour = Number.parseInt(startTime.split(":")[0])
+    if (hour >= 6 && hour < 12) return 0 // morning
+    if (hour >= 12 && hour < 18) return 1 // afternoon
+    return 2 // evening
+  }
+
+  // Helper function to calculate event position within time slot
+  const calculateEventStyleInSlot = (startTime: string, endTime: string, slotIndex: number) => {
+    const startHour = Number.parseInt(startTime.split(":")[0]) + Number.parseInt(startTime.split(":")[1]) / 60
+    const endHour = Number.parseInt(endTime.split(":")[0]) + Number.parseInt(endTime.split(":")[1]) / 60
+
+    let slotStart, slotEnd
+    switch (slotIndex) {
+      case 0: // morning 6-12
+        slotStart = 6
+        slotEnd = 12
+        break
+      case 1: // afternoon 12-18
+        slotStart = 12
+        slotEnd = 18
+        break
+      case 2: // evening 18-24
+        slotStart = 18
+        slotEnd = 24
+        break
+      default:
+        slotStart = 6
+        slotEnd = 12
+    }
+
+    const slotHeight = 120 // 每个时间段的高度
+    const relativeStart = Math.max(0, (startHour - slotStart) / (slotEnd - slotStart))
+    const relativeEnd = Math.min(1, (endHour - slotStart) / (slotEnd - slotStart))
+
+    const top = relativeStart * slotHeight
+    const height = Math.max(20, (relativeEnd - relativeStart) * slotHeight)
+
     return { top: `${top}px`, height: `${height}px` }
   }
 
-  // Sample calendar for mini calendar
-  const daysInMonth = 31
-  const firstDayOffset = 5 // Friday is the first day of the month in this example
-  const miniCalendarDays = Array.from({ length: daysInMonth + firstDayOffset }, (_, i) =>
-    i < firstDayOffset ? null : i - firstDayOffset + 1,
-  )
+  // Get mini calendar days
+  const miniCalendarDays = getMiniCalendarDays()
 
   // Sample my calendars
   const myCalendars = [
@@ -280,6 +378,9 @@ export default function Home() {
     // Here you would typically also control the actual audio playback
   }
 
+  // Get formatted events for display
+  const displayEvents = getEventsForWeekView()
+
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
       {/* Background Image */}
@@ -293,53 +394,70 @@ export default function Home() {
 
       {/* Navigation */}
       <header
-        className={`absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-8 py-6 opacity-0 ${isLoaded ? "animate-fade-in" : ""}`}
+        className={`absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 md:px-8 py-4 md:py-6 opacity-0 ${isLoaded ? "animate-fade-in" : ""}`}
         style={{ animationDelay: "0.2s" }}
       >
-        <div className="flex items-center gap-4">
-          <Menu className="h-6 w-6 text-white" />
-          <span className="text-2xl font-semibold text-white drop-shadow-lg">Calendar</span>
+        <div className="flex items-center gap-2 md:gap-4">
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="md:hidden p-2 rounded-lg hover:bg-white/10 transition-colors"
+          >
+            <Menu className="h-5 w-5 text-white" />
+          </button>
+          <Menu className="hidden md:block h-6 w-6 text-white" />
+          <span className="text-lg md:text-2xl font-semibold text-white drop-shadow-lg">Calendar</span>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="relative">
+        <div className="flex items-center gap-2 md:gap-4">
+          <div className="relative hidden sm:block">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/70" />
             <input
               type="text"
               placeholder="Search"
-              className="rounded-full bg-white/10 backdrop-blur-sm pl-10 pr-4 py-2 text-white placeholder:text-white/70 border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+              className="rounded-full bg-white/10 backdrop-blur-sm pl-10 pr-4 py-2 text-white placeholder:text-white/70 border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/30 w-32 md:w-auto"
             />
           </div>
-          <Settings className="h-6 w-6 text-white drop-shadow-md" />
-          <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold shadow-md">
+          <Search className="sm:hidden h-5 w-5 text-white" />
+          <Settings className="h-5 w-5 md:h-6 md:w-6 text-white drop-shadow-md" />
+          <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold shadow-md text-sm md:text-base">
             U
           </div>
         </div>
       </header>
 
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* Main Content */}
-      <main className="relative h-screen w-full pt-20 flex">
+      <main className="relative h-screen w-full pt-16 md:pt-20 flex">
         {/* Sidebar */}
         <div
-          className={`w-64 h-full bg-white/10 backdrop-blur-lg p-4 shadow-xl border-r border-white/20 rounded-tr-3xl opacity-0 ${isLoaded ? "animate-fade-in" : ""} flex flex-col justify-between`}
+          className={`${
+            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          } md:translate-x-0 fixed md:relative z-40 w-64 h-full bg-white/10 backdrop-blur-lg p-4 shadow-xl border-r border-white/20 rounded-tr-3xl opacity-0 ${isLoaded ? "animate-fade-in" : ""} flex flex-col justify-between transition-transform duration-300 ease-in-out`}
           style={{ animationDelay: "0.4s" }}
         >
           <div>
-            <button className="mb-6 flex items-center justify-center gap-2 rounded-full bg-blue-500 px-4 py-3 text-white w-full">
-              <Plus className="h-5 w-5" />
+            <button
+              onClick={handleOpenCreateModal}
+              className="mb-6 flex items-center justify-center gap-2 rounded-full bg-blue-500 px-4 py-3 text-white w-full hover:bg-blue-600 transition-colors text-sm md:text-base"
+            >
+              <Plus className="h-4 w-4 md:h-5 md:w-5" />
               <span>Create</span>
             </button>
 
             {/* Mini Calendar */}
             <div className="mb-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white font-medium">{currentMonth}</h3>
+                <h3 className="text-white font-medium text-sm md:text-base">{getCurrentMonth()}</h3>
                 <div className="flex gap-1">
-                  <button className="p-1 rounded-full hover:bg-white/20">
-                    <ChevronLeft className="h-4 w-4 text-white" />
+                  <button className="p-1 rounded-full hover:bg-white/20 transition-colors" onClick={goToPreviousMonth}>
+                    <ChevronLeft className="h-3 w-3 md:h-4 md:w-4 text-white" />
                   </button>
-                  <button className="p-1 rounded-full hover:bg-white/20">
-                    <ChevronRight className="h-4 w-4 text-white" />
+                  <button className="p-1 rounded-full hover:bg-white/20 transition-colors" onClick={goToNextMonth}>
+                    <ChevronRight className="h-3 w-3 md:h-4 md:w-4 text-white" />
                   </button>
                 </div>
               </div>
@@ -354,9 +472,10 @@ export default function Home() {
                 {miniCalendarDays.map((day, i) => (
                   <div
                     key={i}
-                    className={`text-xs rounded-full w-7 h-7 flex items-center justify-center ${
-                      day === 5 ? "bg-blue-500 text-white" : "text-white hover:bg-white/20"
+                    className={`text-xs rounded-full w-6 h-6 md:w-7 md:h-7 flex items-center justify-center cursor-pointer transition-colors ${
+                      day === currentDate.getDate() ? "bg-blue-500 text-white" : "text-white hover:bg-white/20"
                     } ${!day ? "invisible" : ""}`}
+                    onClick={() => handleMiniCalendarDayClick(day)}
                   >
                     {day}
                   </div>
@@ -366,21 +485,24 @@ export default function Home() {
 
             {/* My Calendars */}
             <div>
-              <h3 className="text-white font-medium mb-3">My calendars</h3>
+              <h3 className="text-white font-medium mb-3 text-sm md:text-base">My calendars</h3>
               <div className="space-y-2">
                 {myCalendars.map((cal, i) => (
                   <div key={i} className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-sm ${cal.color}`}></div>
-                    <span className="text-white text-sm">{cal.name}</span>
+                    <div className={`w-2 h-2 md:w-3 md:h-3 rounded-sm ${cal.color}`}></div>
+                    <span className="text-white text-xs md:text-sm">{cal.name}</span>
                   </div>
                 ))}
               </div>
             </div>
           </div>
 
-          {/* New position for the big plus button */}
-          <button className="mt-6 flex items-center justify-center gap-2 rounded-full bg-blue-500 p-4 text-white w-14 h-14 self-start">
-            <Plus className="h-6 w-6" />
+          {/* Bottom Create Button */}
+          <button
+            onClick={handleOpenCreateModal}
+            className="mt-6 flex items-center justify-center gap-2 rounded-full bg-blue-500 p-3 md:p-4 text-white w-12 h-12 md:w-14 md:h-14 self-start hover:bg-blue-600 transition-colors"
+          >
+            <Plus className="h-5 w-5 md:h-6 md:w-6" />
           </button>
         </div>
 
@@ -390,53 +512,84 @@ export default function Home() {
           style={{ animationDelay: "0.6s" }}
         >
           {/* Calendar Controls */}
-          <div className="flex items-center justify-between p-4 border-b border-white/20">
-            <div className="flex items-center gap-4">
-              <button className="px-4 py-2 text-white bg-blue-500 rounded-md">Today</button>
+          <div className="flex items-center justify-between p-2 md:p-4 border-b border-white/20 flex-wrap gap-2">
+            <div className="flex items-center gap-2 md:gap-4 flex-wrap">
+              <button
+                className="px-3 py-1.5 md:px-4 md:py-2 text-white bg-blue-500 rounded-md hover:bg-blue-600 transition-colors text-sm md:text-base"
+                onClick={goToToday}
+              >
+                Today
+              </button>
               <div className="flex">
-                <button className="p-2 text-white hover:bg-white/10 rounded-l-md">
-                  <ChevronLeft className="h-5 w-5" />
+                <button
+                  className="p-1.5 md:p-2 text-white hover:bg-white/10 rounded-l-md transition-colors"
+                  onClick={handlePrevious}
+                >
+                  <ChevronLeft className="h-4 w-4 md:h-5 md:w-5" />
                 </button>
-                <button className="p-2 text-white hover:bg-white/10 rounded-r-md">
-                  <ChevronRight className="h-5 w-5" />
+                <button
+                  className="p-1.5 md:p-2 text-white hover:bg-white/10 rounded-r-md transition-colors"
+                  onClick={handleNext}
+                >
+                  <ChevronRight className="h-4 w-4 md:h-5 md:w-5" />
                 </button>
               </div>
-              <h2 className="text-xl font-semibold text-white">{currentDate}</h2>
+              <h2 className="text-lg md:text-xl font-semibold text-white">
+                {currentView === "month" ? getCurrentMonth() : getCurrentDateString()}
+              </h2>
+              {loading && <Loader2 className="h-4 w-4 md:h-5 md:w-5 text-white animate-spin" />}
+              {usingFallback && (
+                <div className="px-2 py-1 bg-yellow-500/20 border border-yellow-500/30 rounded text-yellow-200 text-xs">
+                  Demo Mode
+                </div>
+              )}
             </div>
 
-            <div className="flex items-center gap-2 rounded-md p-1">
+            <div className="flex items-center gap-1 rounded-md p-1">
               <button
                 onClick={() => setCurrentView("day")}
-                className={`px-3 py-1 rounded ${currentView === "day" ? "bg-white/20" : ""} text-white text-sm`}
+                className={`px-2 py-1 md:px-3 md:py-1 rounded transition-colors ${currentView === "day" ? "bg-white/20" : "hover:bg-white/10"} text-white text-xs md:text-sm`}
               >
                 Day
               </button>
               <button
                 onClick={() => setCurrentView("week")}
-                className={`px-3 py-1 rounded ${currentView === "week" ? "bg-white/20" : ""} text-white text-sm`}
+                className={`px-2 py-1 md:px-3 md:py-1 rounded transition-colors ${currentView === "week" ? "bg-white/20" : "hover:bg-white/10"} text-white text-xs md:text-sm`}
               >
                 Week
               </button>
               <button
                 onClick={() => setCurrentView("month")}
-                className={`px-3 py-1 rounded ${currentView === "month" ? "bg-white/20" : ""} text-white text-sm`}
+                className={`px-2 py-1 md:px-3 md:py-1 rounded transition-colors ${currentView === "month" ? "bg-white/20" : "hover:bg-white/10"} text-white text-xs md:text-sm`}
               >
                 Month
               </button>
             </div>
           </div>
 
+          {/* Error Display */}
+          {error && (
+            <div className="mx-2 md:mx-4 mt-2 md:mt-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-white text-sm">
+              Error: {error}
+            </div>
+          )}
+          {usingFallback && !error && (
+            <div className="mx-2 md:mx-4 mt-2 md:mt-4 p-3 bg-blue-500/20 border border-blue-500/30 rounded-lg text-white text-sm">
+              📝 Running in demo mode with sample data. Configure Supabase to enable full functionality.
+            </div>
+          )}
+
           {/* Week View */}
-          <div className="flex-1 overflow-auto p-4">
+          <div className="flex-1 overflow-auto p-2 md:p-4">
             <div className="bg-white/20 backdrop-blur-lg rounded-xl border border-white/20 shadow-xl h-full">
               {/* Week Header */}
               <div className="grid grid-cols-8 border-b border-white/20">
-                <div className="p-2 text-center text-white/50 text-xs"></div>
+                <div className="p-1 md:p-2 text-center text-white/50 text-xs"></div>
                 {weekDays.map((day, i) => (
-                  <div key={i} className="p-2 text-center border-l border-white/20">
+                  <div key={i} className="p-1 md:p-2 text-center border-l border-white/20">
                     <div className="text-xs text-white/70 font-medium">{day}</div>
                     <div
-                      className={`text-lg font-medium mt-1 text-white ${weekDates[i] === 5 ? "bg-blue-500 rounded-full w-8 h-8 flex items-center justify-center mx-auto" : ""}`}
+                      className={`text-sm md:text-lg font-medium mt-1 text-white transition-colors ${weekDates[i] === currentDate.getDate() ? "bg-blue-500 rounded-full w-6 h-6 md:w-8 md:h-8 flex items-center justify-center mx-auto text-xs md:text-base" : ""}`}
                     >
                       {weekDates[i]}
                     </div>
@@ -444,13 +597,17 @@ export default function Home() {
                 ))}
               </div>
 
-              {/* Time Grid */}
+              {/* Time Grid with Morning/Afternoon/Evening */}
               <div className="grid grid-cols-8">
                 {/* Time Labels */}
                 <div className="text-white/70">
-                  {timeSlots.map((time, i) => (
-                    <div key={i} className="h-20 border-b border-white/10 pr-2 text-right text-xs">
-                      {time > 12 ? `${time - 12} PM` : `${time} AM`}
+                  {timeSlots.map((slot, i) => (
+                    <div
+                      key={i}
+                      className="h-24 md:h-32 border-b border-white/10 pr-1 md:pr-2 text-right flex flex-col justify-center"
+                    >
+                      <div className="text-xs md:text-sm font-medium">{slot.name}</div>
+                      <div className="text-xs text-white/50">{slot.time}</div>
                     </div>
                   ))}
                 </div>
@@ -459,27 +616,51 @@ export default function Home() {
                 {Array.from({ length: 7 }).map((_, dayIndex) => (
                   <div key={dayIndex} className="border-l border-white/20 relative">
                     {timeSlots.map((_, timeIndex) => (
-                      <div key={timeIndex} className="h-20 border-b border-white/10"></div>
+                      <div key={timeIndex} className="h-24 md:h-32 border-b border-white/10"></div>
                     ))}
 
                     {/* Events */}
-                    {events
+                    {displayEvents
                       .filter((event) => event.day === dayIndex + 1)
                       .map((event, i) => {
-                        const eventStyle = calculateEventStyle(event.startTime, event.endTime)
+                        const eventSlot = getEventTimeSlot(event.startTime)
+                        const eventStyle = calculateEventStyleInSlot(event.startTime, event.endTime, eventSlot)
+                        const hasImage = event.image_url || event.thumbnail_url
+
                         return (
                           <div
-                            key={i}
-                            className={`absolute ${event.color} rounded-md p-2 text-white text-xs shadow-md cursor-pointer transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg`}
+                            key={event.id}
+                            className={`absolute rounded-md text-white text-xs shadow-md cursor-pointer transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg overflow-hidden ${
+                              hasImage ? "p-0" : `${event.color} p-1 md:p-2`
+                            }`}
                             style={{
                               ...eventStyle,
-                              left: "4px",
-                              right: "4px",
+                              left: "2px",
+                              right: "2px",
+                              top: `${eventSlot * (96 + 1) + Number.parseInt(eventStyle.top)}px`, // 96px = h-24, 128px = h-32 for md
                             }}
                             onClick={() => handleEventClick(event)}
                           >
-                            <div className="font-medium">{event.title}</div>
-                            <div className="opacity-80 text-[10px] mt-1">{`${event.startTime} - ${event.endTime}`}</div>
+                            {hasImage ? (
+                              // Image-only display
+                              <div className="relative w-full h-full">
+                                <img
+                                  src={event.thumbnail_url || event.image_url || "/placeholder.svg"}
+                                  alt={event.title}
+                                  className="w-full h-full object-cover rounded-md"
+                                />
+                                {/* Optional: Add a subtle overlay with just the title */}
+                                <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-1 rounded-b-md">
+                                  <div className="font-medium text-xs text-white truncate">{event.title}</div>
+                                </div>
+                              </div>
+                            ) : (
+                              // Text-only display (original format)
+                              <>
+                                <div className="font-medium text-xs md:text-sm truncate">{event.title}</div>
+                                <div className="opacity-80 text-xs mt-1 hidden md:block">{`${event.startTime} - ${event.endTime}`}</div>
+                              </>
+                            )}
                           </div>
                         )
                       })}
@@ -490,34 +671,42 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Create Event Modal */}
+        <CreateEventModal
+          isOpen={showCreateModal}
+          onClose={handleCloseCreateModal}
+          onCreateEvent={handleCreateEvent}
+          selectedDate={currentDate}
+        />
+
         {/* AI Popup */}
         {showAIPopup && (
-          <div className="fixed bottom-8 right-8 z-20">
-            <div className="w-[450px] relative bg-gradient-to-br from-blue-400/30 via-blue-500/30 to-blue-600/30 backdrop-blur-lg p-6 rounded-2xl shadow-xl border border-blue-300/30 text-white">
+          <div className="fixed bottom-4 right-4 md:bottom-8 md:right-8 z-20 max-w-sm md:max-w-md">
+            <div className="w-full relative bg-gradient-to-br from-blue-400/30 via-blue-500/30 to-blue-600/30 backdrop-blur-lg p-4 md:p-6 rounded-2xl shadow-xl border border-blue-300/30 text-white">
               <button
                 onClick={() => setShowAIPopup(false)}
                 className="absolute top-2 right-2 text-white/70 hover:text-white transition-colors"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4 md:h-5 md:w-5" />
               </button>
               <div className="flex gap-3">
                 <div className="flex-shrink-0">
-                  <Sparkles className="h-5 w-5 text-blue-300" />
+                  <Sparkles className="h-4 w-4 md:h-5 md:w-5 text-blue-300" />
                 </div>
-                <div className="min-h-[80px]">
-                  <p className="text-base font-light">{typedText}</p>
+                <div className="min-h-[60px] md:min-h-[80px]">
+                  <p className="text-sm md:text-base font-light">{typedText}</p>
                 </div>
               </div>
-              <div className="mt-6 flex gap-3">
+              <div className="mt-4 md:mt-6 flex gap-3">
                 <button
                   onClick={togglePlay}
-                  className="flex-1 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-sm transition-colors font-medium"
+                  className="flex-1 py-2 md:py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-sm transition-colors font-medium"
                 >
                   Yes
                 </button>
                 <button
                   onClick={() => setShowAIPopup(false)}
-                  className="flex-1 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-sm transition-colors font-medium"
+                  className="flex-1 py-2 md:py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-sm transition-colors font-medium"
                 >
                   No
                 </button>
@@ -525,10 +714,10 @@ export default function Home() {
               {isPlaying && (
                 <div className="mt-4 flex items-center justify-between">
                   <button
-                    className="flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-white text-sm hover:bg-white/20 transition-colors"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-white/10 px-3 md:px-4 py-2 md:py-2.5 text-white text-sm hover:bg-white/20 transition-colors"
                     onClick={togglePlay}
                   >
-                    <Pause className="h-4 w-4" />
+                    <Pause className="h-3 w-3 md:h-4 md:w-4" />
                     <span>Pause Hans Zimmer</span>
                   </button>
                 </div>
@@ -537,41 +726,64 @@ export default function Home() {
           </div>
         )}
 
+        {/* Event Detail Modal - Updated to show different content based on image presence */}
         {selectedEvent && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className={`${selectedEvent.color} p-6 rounded-lg shadow-xl max-w-md w-full mx-4`}>
-              <h3 className="text-2xl font-bold mb-4 text-white">{selectedEvent.title}</h3>
-              <div className="space-y-3 text-white">
-                <p className="flex items-center">
-                  <Clock className="mr-2 h-5 w-5" />
-                  {`${selectedEvent.startTime} - ${selectedEvent.endTime}`}
-                </p>
-                <p className="flex items-center">
-                  <MapPin className="mr-2 h-5 w-5" />
-                  {selectedEvent.location}
-                </p>
-                <p className="flex items-center">
-                  <Calendar className="mr-2 h-5 w-5" />
-                  {`${weekDays[selectedEvent.day - 1]}, ${weekDates[selectedEvent.day - 1]} ${currentMonth}`}
-                </p>
-                <p className="flex items-start">
-                  <Users className="mr-2 h-5 w-5 mt-1" />
-                  <span>
-                    <strong>Attendees:</strong>
-                    <br />
-                    {selectedEvent.attendees.join(", ") || "No attendees"}
-                  </span>
-                </p>
-                <p>
-                  <strong>Organizer:</strong> {selectedEvent.organizer}
-                </p>
-                <p>
-                  <strong>Description:</strong> {selectedEvent.description}
-                </p>
-              </div>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className={`${selectedEvent.color} p-4 md:p-6 rounded-lg shadow-xl max-w-md w-full`}>
+              {selectedEvent.image_url && (
+                <div className="mb-4">
+                  <img
+                    src={selectedEvent.image_url || "/placeholder.svg"}
+                    alt={selectedEvent.title}
+                    className="w-full h-32 md:h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => {
+                      setViewerImage({ url: selectedEvent.image_url!, title: selectedEvent.title })
+                      setShowImageViewer(true)
+                    }}
+                  />
+                </div>
+              )}
+              <h3 className="text-xl md:text-2xl font-bold mb-4 text-white">{selectedEvent.title}</h3>
+
+              {/* Only show details if there's no image */}
+              {!selectedEvent.image_url && (
+                <div className="space-y-3 text-white text-sm md:text-base">
+                  <p className="flex items-center">
+                    <Clock className="mr-2 h-4 w-4 md:h-5 md:w-5" />
+                    {`${selectedEvent.startTime} - ${selectedEvent.endTime}`}
+                  </p>
+                  <p className="flex items-center">
+                    <MapPin className="mr-2 h-4 w-4 md:h-5 md:w-5" />
+                    {selectedEvent.location}
+                  </p>
+                  <p className="flex items-center">
+                    <Calendar className="mr-2 h-4 w-4 md:h-5 md:w-5" />
+                    {new Date(selectedEvent.date).toLocaleDateString("en-US", {
+                      weekday: "short",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </p>
+                  <p className="flex items-start">
+                    <Users className="mr-2 h-4 w-4 md:h-5 md:w-5 mt-1" />
+                    <span>
+                      <strong>Attendees:</strong>
+                      <br />
+                      {selectedEvent.attendees?.join(", ") || "No attendees"}
+                    </span>
+                  </p>
+                  <p>
+                    <strong>Organizer:</strong> {selectedEvent.organizer}
+                  </p>
+                  <p>
+                    <strong>Description:</strong> {selectedEvent.description}
+                  </p>
+                </div>
+              )}
+
               <div className="mt-6 flex justify-end">
                 <button
-                  className="bg-white text-gray-800 px-4 py-2 rounded hover:bg-gray-100 transition-colors"
+                  className="bg-white text-gray-800 px-4 py-2 rounded hover:bg-gray-100 transition-colors text-sm md:text-base"
                   onClick={() => setSelectedEvent(null)}
                 >
                   Close
@@ -581,7 +793,13 @@ export default function Home() {
           </div>
         )}
 
-        {/* Floating Action Button - Removed */}
+        {/* Image Viewer */}
+        <ImageViewer
+          isOpen={showImageViewer}
+          onClose={() => setShowImageViewer(false)}
+          imageUrl={viewerImage?.url || ""}
+          title={viewerImage?.title || ""}
+        />
       </main>
     </div>
   )
