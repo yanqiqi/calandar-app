@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import {
   ChevronLeft,
@@ -18,257 +16,13 @@ import {
   Pause,
   Sparkles,
   X,
-  Loader2,
 } from "lucide-react"
-import { useEvents } from "@/hooks/useEvents"
-import { CreateEventModal } from "@/components/create-event-modal"
-import type { Event } from "@/lib/supabase"
-import { toast } from "@/hooks/use-toast"
-import { ImageViewer } from "@/components/image-viewer"
 
 export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false)
   const [showAIPopup, setShowAIPopup] = useState(false)
   const [typedText, setTypedText] = useState("")
   const [isPlaying, setIsPlaying] = useState(false)
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showImageViewer, setShowImageViewer] = useState(false)
-  const [viewerImage, setViewerImage] = useState<{ url: string; title: string } | null>(null)
-
-  // Calendar state
-  const [currentView, setCurrentView] = useState("week")
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 29, 7)) // March 5, 2025
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
-
-  // Calculate date range based on current view and date
-  const dateRange = useMemo(() => {
-    const start = new Date(currentDate)
-    const end = new Date(currentDate)
-
-    switch (currentView) {
-      case "day":
-        // Same day
-        break
-      case "week":
-        // Start of week (Sunday) to end of week (Saturday)
-        const dayOfWeek = start.getDay()
-        start.setDate(start.getDate() - dayOfWeek)
-        end.setDate(start.getDate() + 6)
-        break
-      case "month":
-        // Start of month to end of month
-        start.setDate(1)
-        end.setMonth(end.getMonth() + 1)
-        end.setDate(0)
-        break
-    }
-
-    return { start, end }
-  }, [currentDate, currentView])
-
-  // Use the events hook with dynamic date range
-  const { events, loading, error, usingFallback, isSupabaseConfigured, createEvent, updateEvent, deleteEvent } =
-    useEvents(dateRange.start, dateRange.end)
-
-  // Get current month and format it
-  const getCurrentMonth = () => {
-    return currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })
-  }
-
-  const getCurrentDateString = () => {
-    return currentDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })
-  }
-
-  // Get week dates based on current date
-  const getWeekDates = () => {
-    const startOfWeek = new Date(currentDate)
-    const day = startOfWeek.getDay()
-    startOfWeek.setDate(startOfWeek.getDate() - day)
-
-    const weekDates = []
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(startOfWeek)
-      date.setDate(startOfWeek.getDate() + i)
-      weekDates.push(date.getDate())
-    }
-    return weekDates
-  }
-
-  // Get mini calendar days
-  const getMiniCalendarDays = () => {
-    const year = currentDate.getFullYear()
-    const month = currentDate.getMonth()
-    const firstDay = new Date(year, month, 1)
-    const lastDay = new Date(year, month + 1, 0)
-    const firstDayOfWeek = firstDay.getDay()
-    const daysInMonth = lastDay.getDate()
-
-    const days = []
-
-    // Add empty cells for days before the first day of the month
-    for (let i = 0; i < firstDayOfWeek; i++) {
-      days.push(null)
-    }
-
-    // Add days of the month
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push(i)
-    }
-
-    return days
-  }
-
-  // Convert database events to display format
-  const getEventsForWeekView = () => {
-    const startOfWeek = new Date(currentDate)
-    const day = startOfWeek.getDay()
-    startOfWeek.setDate(startOfWeek.getDate() - day)
-
-    return events.map((event) => {
-      const eventDate = new Date(event.date)
-      const dayOfWeek = eventDate.getDay()
-
-      return {
-        ...event,
-        day: dayOfWeek + 1, // Convert to 1-based index for display
-        startTime: event.start_time,
-        endTime: event.end_time,
-      }
-    })
-  }
-
-  // Navigation functions
-  const goToPreviousMonth = () => {
-    setCurrentDate((prev) => {
-      const newDate = new Date(prev)
-      newDate.setMonth(prev.getMonth() - 1)
-      return newDate
-    })
-  }
-
-  const goToNextMonth = () => {
-    setCurrentDate((prev) => {
-      const newDate = new Date(prev)
-      newDate.setMonth(prev.getMonth() + 1)
-      return newDate
-    })
-  }
-
-  const goToPreviousWeek = () => {
-    setCurrentDate((prev) => {
-      const newDate = new Date(prev)
-      newDate.setDate(prev.getDate() - 7)
-      return newDate
-    })
-  }
-
-  const goToNextWeek = () => {
-    setCurrentDate((prev) => {
-      const newDate = new Date(prev)
-      newDate.setDate(prev.getDate() + 7)
-      return newDate
-    })
-  }
-
-  const goToPreviousDay = () => {
-    setCurrentDate((prev) => {
-      const newDate = new Date(prev)
-      newDate.setDate(prev.getDate() - 1)
-      return newDate
-    })
-  }
-
-  const goToNextDay = () => {
-    setCurrentDate((prev) => {
-      const newDate = new Date(prev)
-      newDate.setDate(prev.getDate() + 1)
-      return newDate
-    })
-  }
-
-  const goToToday = () => {
-    const today = new Date();
-    const dateExpression = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-    setCurrentDate(dateExpression) // March 5, 2025 (keeping original date)
-
-  }
-
-  const handleMiniCalendarDayClick = (day) => {
-    if (day) {
-      const newDate = new Date(currentDate)
-      newDate.setDate(day)
-      setCurrentDate(newDate)
-    }
-  }
-
-  // Navigation handlers based on current view
-  const handlePrevious = () => {
-    switch (currentView) {
-      case "day":
-        goToPreviousDay()
-        break
-      case "week":
-        goToPreviousWeek()
-        break
-      case "month":
-        goToPreviousMonth()
-        break
-    }
-  }
-
-  const handleNext = () => {
-    switch (currentView) {
-      case "day":
-        goToNextDay()
-        break
-      case "week":
-        goToNextWeek()
-        break
-      case "month":
-        goToNextMonth()
-        break
-    }
-  }
-
-  // Handle create event
-  const handleCreateEvent = async (
-    eventData: Omit<Event, "id" | "created_at" | "updated_at">,
-    imageData?: { file: File; thumbnail: Blob; compressed: Blob },
-  ) => {
-    try {
-      if (usingFallback) {
-        // Show a toast message for demo mode
-        toast({
-          title: "Demo Mode",
-          description: "Event creation is disabled in demo mode. Configure Supabase to enable full functionality.",
-          variant: "default",
-        })
-        return
-      }
-
-      await createEvent(eventData, imageData)
-      toast({
-        title: "Event Created",
-        description: `"${eventData.title}" has been successfully created.`,
-        variant: "default",
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create event. Please try again.",
-        variant: "destructive",
-      })
-      throw error
-    }
-  }
-
-  const handleOpenCreateModal = () => {
-    setShowCreateModal(true)
-  }
-
-  const handleCloseCreateModal = () => {
-    setShowCreateModal(false)
-  }
 
   useEffect(() => {
     setIsLoaded(true)
@@ -299,21 +53,202 @@ export default function Home() {
     }
   }, [showAIPopup])
 
+  const [currentView, setCurrentView] = useState("week")
+  const [currentMonth, setCurrentMonth] = useState("March 2025")
+  const [currentDate, setCurrentDate] = useState("March 5")
+  const [selectedEvent, setSelectedEvent] = useState(null)
+
   const handleEventClick = (event) => {
     setSelectedEvent(event)
   }
 
-  const handleImageClick = (event: Event, e: React.MouseEvent) => {
-    e.stopPropagation() // Prevent event card click
-    if (event.image_url) {
-      setViewerImage({ url: event.image_url, title: event.title })
-      setShowImageViewer(true)
-    }
-  }
+  // Updated sample calendar events with all events before 4 PM
+  const events = [
+    {
+      id: 1,
+      title: "Team Meeting",
+      startTime: "09:00",
+      endTime: "10:00",
+      color: "bg-blue-500",
+      day: 1,
+      description: "Weekly team sync-up",
+      location: "Conference Room A",
+      attendees: ["John Doe", "Jane Smith", "Bob Johnson"],
+      organizer: "Alice Brown",
+    },
+    {
+      id: 2,
+      title: "Lunch with Sarah",
+      startTime: "12:30",
+      endTime: "13:30",
+      color: "bg-green-500",
+      day: 1,
+      description: "Discuss project timeline",
+      location: "Cafe Nero",
+      attendees: ["Sarah Lee"],
+      organizer: "You",
+    },
+    {
+      id: 3,
+      title: "Project Review",
+      startTime: "14:00",
+      endTime: "15:30",
+      color: "bg-purple-500",
+      day: 3,
+      description: "Q2 project progress review",
+      location: "Meeting Room 3",
+      attendees: ["Team Alpha", "Stakeholders"],
+      organizer: "Project Manager",
+    },
+    {
+      id: 4,
+      title: "Client Call",
+      startTime: "10:00",
+      endTime: "11:00",
+      color: "bg-yellow-500",
+      day: 2,
+      description: "Quarterly review with major client",
+      location: "Zoom Meeting",
+      attendees: ["Client Team", "Sales Team"],
+      organizer: "Account Manager",
+    },
+    {
+      id: 5,
+      title: "Team Brainstorm",
+      startTime: "13:00",
+      endTime: "14:30",
+      color: "bg-indigo-500",
+      day: 4,
+      description: "Ideation session for new product features",
+      location: "Creative Space",
+      attendees: ["Product Team", "Design Team"],
+      organizer: "Product Owner",
+    },
+    {
+      id: 6,
+      title: "Product Demo",
+      startTime: "11:00",
+      endTime: "12:00",
+      color: "bg-pink-500",
+      day: 5,
+      description: "Showcase new features to stakeholders",
+      location: "Demo Room",
+      attendees: ["Stakeholders", "Dev Team"],
+      organizer: "Tech Lead",
+    },
+    {
+      id: 7,
+      title: "Marketing Meeting",
+      startTime: "13:00",
+      endTime: "14:00",
+      color: "bg-teal-500",
+      day: 6,
+      description: "Discuss Q3 marketing strategy",
+      location: "Marketing Office",
+      attendees: ["Marketing Team"],
+      organizer: "Marketing Director",
+    },
+    {
+      id: 8,
+      title: "Code Review",
+      startTime: "15:00",
+      endTime: "16:00",
+      color: "bg-cyan-500",
+      day: 7,
+      description: "Review pull requests for new feature",
+      location: "Dev Area",
+      attendees: ["Dev Team"],
+      organizer: "Senior Developer",
+    },
+    {
+      id: 9,
+      title: "Morning Standup",
+      startTime: "08:30",
+      endTime: "09:30", // Changed from "09:00" to "09:30"
+      color: "bg-blue-400",
+      day: 2,
+      description: "Daily team standup",
+      location: "Slack Huddle",
+      attendees: ["Development Team"],
+      organizer: "Scrum Master",
+    },
+    {
+      id: 10,
+      title: "Design Review",
+      startTime: "14:30",
+      endTime: "15:45",
+      color: "bg-purple-400",
+      day: 5,
+      description: "Review new UI designs",
+      location: "Design Lab",
+      attendees: ["UX Team", "Product Manager"],
+      organizer: "Lead Designer",
+    },
+    {
+      id: 11,
+      title: "Investor Meeting",
+      startTime: "10:30",
+      endTime: "12:00",
+      color: "bg-red-400",
+      day: 7,
+      description: "Quarterly investor update",
+      location: "Board Room",
+      attendees: ["Executive Team", "Investors"],
+      organizer: "CEO",
+    },
+    {
+      id: 12,
+      title: "Team Training",
+      startTime: "09:30",
+      endTime: "11:30",
+      color: "bg-green-400",
+      day: 4,
+      description: "New tool onboarding session",
+      location: "Training Room",
+      attendees: ["All Departments"],
+      organizer: "HR",
+    },
+    {
+      id: 13,
+      title: "Budget Review",
+      startTime: "13:30",
+      endTime: "15:00",
+      color: "bg-yellow-400",
+      day: 3,
+      description: "Quarterly budget analysis",
+      location: "Finance Office",
+      attendees: ["Finance Team", "Department Heads"],
+      organizer: "CFO",
+    },
+    {
+      id: 14,
+      title: "Client Presentation",
+      startTime: "11:00",
+      endTime: "12:30",
+      color: "bg-orange-400",
+      day: 6,
+      description: "Present new project proposal",
+      location: "Client Office",
+      attendees: ["Sales Team", "Client Representatives"],
+      organizer: "Account Executive",
+    },
+    {
+      id: 15,
+      title: "Product Planning",
+      startTime: "14:00",
+      endTime: "15:30",
+      color: "bg-pink-400",
+      day: 1,
+      description: "Roadmap discussion for Q3",
+      location: "Strategy Room",
+      attendees: ["Product Team", "Engineering Leads"],
+      organizer: "Product Manager",
+    },
+  ]
 
   // Sample calendar days for the week view
   const weekDays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
-  const weekDates = getWeekDates()
+  const weekDates = [3, 4, 5, 6, 7, 8, 9]
   const timeSlots = Array.from({ length: 9 }, (_, i) => i + 8) // 8 AM to 4 PM
 
   // Helper function to calculate event position and height
@@ -325,8 +260,12 @@ export default function Home() {
     return { top: `${top}px`, height: `${height}px` }
   }
 
-  // Get mini calendar days
-  const miniCalendarDays = getMiniCalendarDays()
+  // Sample calendar for mini calendar
+  const daysInMonth = 31
+  const firstDayOffset = 5 // Friday is the first day of the month in this example
+  const miniCalendarDays = Array.from({ length: daysInMonth + firstDayOffset }, (_, i) =>
+    i < firstDayOffset ? null : i - firstDayOffset + 1,
+  )
 
   // Sample my calendars
   const myCalendars = [
@@ -340,9 +279,6 @@ export default function Home() {
     setIsPlaying(!isPlaying)
     // Here you would typically also control the actual audio playback
   }
-
-  // Get formatted events for display
-  const displayEvents = getEventsForWeekView()
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
@@ -389,10 +325,7 @@ export default function Home() {
           style={{ animationDelay: "0.4s" }}
         >
           <div>
-            <button
-              onClick={handleOpenCreateModal}
-              className="mb-6 flex items-center justify-center gap-2 rounded-full bg-blue-500 px-4 py-3 text-white w-full hover:bg-blue-600 transition-colors"
-            >
+            <button className="mb-6 flex items-center justify-center gap-2 rounded-full bg-blue-500 px-4 py-3 text-white w-full">
               <Plus className="h-5 w-5" />
               <span>Create</span>
             </button>
@@ -400,12 +333,12 @@ export default function Home() {
             {/* Mini Calendar */}
             <div className="mb-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white font-medium">{getCurrentMonth()}</h3>
+                <h3 className="text-white font-medium">{currentMonth}</h3>
                 <div className="flex gap-1">
-                  <button className="p-1 rounded-full hover:bg-white/20 transition-colors" onClick={goToPreviousMonth}>
+                  <button className="p-1 rounded-full hover:bg-white/20">
                     <ChevronLeft className="h-4 w-4 text-white" />
                   </button>
-                  <button className="p-1 rounded-full hover:bg-white/20 transition-colors" onClick={goToNextMonth}>
+                  <button className="p-1 rounded-full hover:bg-white/20">
                     <ChevronRight className="h-4 w-4 text-white" />
                   </button>
                 </div>
@@ -421,10 +354,9 @@ export default function Home() {
                 {miniCalendarDays.map((day, i) => (
                   <div
                     key={i}
-                    className={`text-xs rounded-full w-7 h-7 flex items-center justify-center cursor-pointer transition-colors ${
-                      day === currentDate.getDate() ? "bg-blue-500 text-white" : "text-white hover:bg-white/20"
+                    className={`text-xs rounded-full w-7 h-7 flex items-center justify-center ${
+                      day === 5 ? "bg-blue-500 text-white" : "text-white hover:bg-white/20"
                     } ${!day ? "invisible" : ""}`}
-                    onClick={() => handleMiniCalendarDayClick(day)}
                   >
                     {day}
                   </div>
@@ -446,11 +378,8 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Bottom Create Button */}
-          <button
-            onClick={handleOpenCreateModal}
-            className="mt-6 flex items-center justify-center gap-2 rounded-full bg-blue-500 p-4 text-white w-14 h-14 self-start hover:bg-blue-600 transition-colors"
-          >
+          {/* New position for the big plus button */}
+          <button className="mt-6 flex items-center justify-center gap-2 rounded-full bg-blue-500 p-4 text-white w-14 h-14 self-start">
             <Plus className="h-6 w-6" />
           </button>
         </div>
@@ -463,70 +392,39 @@ export default function Home() {
           {/* Calendar Controls */}
           <div className="flex items-center justify-between p-4 border-b border-white/20">
             <div className="flex items-center gap-4">
-              <button
-                className="px-4 py-2 text-white bg-blue-500 rounded-md hover:bg-blue-600 transition-colors"
-                onClick={goToToday}
-              >
-                Today
-              </button>
+              <button className="px-4 py-2 text-white bg-blue-500 rounded-md">Today</button>
               <div className="flex">
-                <button
-                  className="p-2 text-white hover:bg-white/10 rounded-l-md transition-colors"
-                  onClick={handlePrevious}
-                >
+                <button className="p-2 text-white hover:bg-white/10 rounded-l-md">
                   <ChevronLeft className="h-5 w-5" />
                 </button>
-                <button
-                  className="p-2 text-white hover:bg-white/10 rounded-r-md transition-colors"
-                  onClick={handleNext}
-                >
+                <button className="p-2 text-white hover:bg-white/10 rounded-r-md">
                   <ChevronRight className="h-5 w-5" />
                 </button>
               </div>
-              <h2 className="text-xl font-semibold text-white">
-                {currentView === "month" ? getCurrentMonth() : getCurrentDateString()}
-              </h2>
-              {loading && <Loader2 className="h-5 w-5 text-white animate-spin" />}
-              {usingFallback && (
-                <div className="px-2 py-1 bg-yellow-500/20 border border-yellow-500/30 rounded text-yellow-200 text-xs">
-                  Demo Mode
-                </div>
-              )}
+              <h2 className="text-xl font-semibold text-white">{currentDate}</h2>
             </div>
 
             <div className="flex items-center gap-2 rounded-md p-1">
               <button
                 onClick={() => setCurrentView("day")}
-                className={`px-3 py-1 rounded transition-colors ${currentView === "day" ? "bg-white/20" : "hover:bg-white/10"} text-white text-sm`}
+                className={`px-3 py-1 rounded ${currentView === "day" ? "bg-white/20" : ""} text-white text-sm`}
               >
                 Day
               </button>
               <button
                 onClick={() => setCurrentView("week")}
-                className={`px-3 py-1 rounded transition-colors ${currentView === "week" ? "bg-white/20" : "hover:bg-white/10"} text-white text-sm`}
+                className={`px-3 py-1 rounded ${currentView === "week" ? "bg-white/20" : ""} text-white text-sm`}
               >
                 Week
               </button>
               <button
                 onClick={() => setCurrentView("month")}
-                className={`px-3 py-1 rounded transition-colors ${currentView === "month" ? "bg-white/20" : "hover:bg-white/10"} text-white text-sm`}
+                className={`px-3 py-1 rounded ${currentView === "month" ? "bg-white/20" : ""} text-white text-sm`}
               >
                 Month
               </button>
             </div>
           </div>
-
-          {/* Error Display */}
-          {error && (
-            <div className="mx-4 mt-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-white text-sm">
-              Error: {error}
-            </div>
-          )}
-          {usingFallback && !error && (
-            <div className="mx-4 mt-4 p-3 bg-blue-500/20 border border-blue-500/30 rounded-lg text-white text-sm">
-              📝 Running in demo mode with sample data. Configure Supabase to enable full functionality.
-            </div>
-          )}
 
           {/* Week View */}
           <div className="flex-1 overflow-auto p-4">
@@ -538,7 +436,7 @@ export default function Home() {
                   <div key={i} className="p-2 text-center border-l border-white/20">
                     <div className="text-xs text-white/70 font-medium">{day}</div>
                     <div
-                      className={`text-lg font-medium mt-1 text-white transition-colors ${weekDates[i] === currentDate.getDate() ? "bg-blue-500 rounded-full w-8 h-8 flex items-center justify-center mx-auto" : ""}`}
+                      className={`text-lg font-medium mt-1 text-white ${weekDates[i] === 5 ? "bg-blue-500 rounded-full w-8 h-8 flex items-center justify-center mx-auto" : ""}`}
                     >
                       {weekDates[i]}
                     </div>
@@ -565,18 +463,14 @@ export default function Home() {
                     ))}
 
                     {/* Events */}
-                    {displayEvents
+                    {events
                       .filter((event) => event.day === dayIndex + 1)
                       .map((event, i) => {
                         const eventStyle = calculateEventStyle(event.startTime, event.endTime)
-                        const hasImage = event.image_url || event.thumbnail_url
-
                         return (
                           <div
-                            key={event.id}
-                            className={`absolute rounded-md text-white text-xs shadow-md cursor-pointer transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg overflow-hidden ${
-                              hasImage ? "p-0" : `${event.color} p-2`
-                            }`}
+                            key={i}
+                            className={`absolute ${event.color} rounded-md p-2 text-white text-xs shadow-md cursor-pointer transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg`}
                             style={{
                               ...eventStyle,
                               left: "4px",
@@ -584,26 +478,8 @@ export default function Home() {
                             }}
                             onClick={() => handleEventClick(event)}
                           >
-                            {hasImage ? (
-                              // Image-only display
-                              <div className="relative w-full h-full">
-                                <img
-                                  src={event.thumbnail_url || event.image_url || "/placeholder.svg"}
-                                  alt={event.title}
-                                  className="w-full h-full object-cover rounded-md"
-                                />
-                                {/* Optional: Add a subtle overlay with just the title */}
-                                <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-1 rounded-b-md">
-                                  <div className="font-medium text-xs text-white truncate">{event.title}</div>
-                                </div>
-                              </div>
-                            ) : (
-                              // Text-only display (original format)
-                              <>
-                                <div className="font-medium">{event.title}</div>
-                                <div className="opacity-80 text-[10px] mt-1">{`${event.startTime} - ${event.endTime}`}</div>
-                              </>
-                            )}
+                            <div className="font-medium">{event.title}</div>
+                            <div className="opacity-80 text-[10px] mt-1">{`${event.startTime} - ${event.endTime}`}</div>
                           </div>
                         )
                       })}
@@ -613,14 +489,6 @@ export default function Home() {
             </div>
           </div>
         </div>
-
-        {/* Create Event Modal */}
-        <CreateEventModal
-          isOpen={showCreateModal}
-          onClose={handleCloseCreateModal}
-          onCreateEvent={handleCreateEvent}
-          selectedDate={currentDate}
-        />
 
         {/* AI Popup */}
         {showAIPopup && (
@@ -669,61 +537,38 @@ export default function Home() {
           </div>
         )}
 
-        {/* Event Detail Modal - Updated to show different content based on image presence */}
         {selectedEvent && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className={`${selectedEvent.color} p-6 rounded-lg shadow-xl max-w-md w-full mx-4`}>
-              {selectedEvent.image_url && (
-                <div className="mb-4">
-                  <img
-                    src={selectedEvent.image_url || "/placeholder.svg"}
-                    alt={selectedEvent.title}
-                    className="w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                    onClick={() => {
-                      setViewerImage({ url: selectedEvent.image_url!, title: selectedEvent.title })
-                      setShowImageViewer(true)
-                    }}
-                  />
-                </div>
-              )}
               <h3 className="text-2xl font-bold mb-4 text-white">{selectedEvent.title}</h3>
-
-              {/* Only show details if there's no image */}
-              {!selectedEvent.image_url && (
-                <div className="space-y-3 text-white">
-                  <p className="flex items-center">
-                    <Clock className="mr-2 h-5 w-5" />
-                    {`${selectedEvent.startTime} - ${selectedEvent.endTime}`}
-                  </p>
-                  <p className="flex items-center">
-                    <MapPin className="mr-2 h-5 w-5" />
-                    {selectedEvent.location}
-                  </p>
-                  <p className="flex items-center">
-                    <Calendar className="mr-2 h-5 w-5" />
-                    {new Date(selectedEvent.date).toLocaleDateString("en-US", {
-                      weekday: "short",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </p>
-                  <p className="flex items-start">
-                    <Users className="mr-2 h-5 w-5 mt-1" />
-                    <span>
-                      <strong>Attendees:</strong>
-                      <br />
-                      {selectedEvent.attendees?.join(", ") || "No attendees"}
-                    </span>
-                  </p>
-                  <p>
-                    <strong>Organizer:</strong> {selectedEvent.organizer}
-                  </p>
-                  <p>
-                    <strong>Description:</strong> {selectedEvent.description}
-                  </p>
-                </div>
-              )}
-
+              <div className="space-y-3 text-white">
+                <p className="flex items-center">
+                  <Clock className="mr-2 h-5 w-5" />
+                  {`${selectedEvent.startTime} - ${selectedEvent.endTime}`}
+                </p>
+                <p className="flex items-center">
+                  <MapPin className="mr-2 h-5 w-5" />
+                  {selectedEvent.location}
+                </p>
+                <p className="flex items-center">
+                  <Calendar className="mr-2 h-5 w-5" />
+                  {`${weekDays[selectedEvent.day - 1]}, ${weekDates[selectedEvent.day - 1]} ${currentMonth}`}
+                </p>
+                <p className="flex items-start">
+                  <Users className="mr-2 h-5 w-5 mt-1" />
+                  <span>
+                    <strong>Attendees:</strong>
+                    <br />
+                    {selectedEvent.attendees.join(", ") || "No attendees"}
+                  </span>
+                </p>
+                <p>
+                  <strong>Organizer:</strong> {selectedEvent.organizer}
+                </p>
+                <p>
+                  <strong>Description:</strong> {selectedEvent.description}
+                </p>
+              </div>
               <div className="mt-6 flex justify-end">
                 <button
                   className="bg-white text-gray-800 px-4 py-2 rounded hover:bg-gray-100 transition-colors"
@@ -736,13 +581,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* Image Viewer */}
-        <ImageViewer
-          isOpen={showImageViewer}
-          onClose={() => setShowImageViewer(false)}
-          imageUrl={viewerImage?.url || ""}
-          title={viewerImage?.title || ""}
-        />
+        {/* Floating Action Button - Removed */}
       </main>
     </div>
   )
