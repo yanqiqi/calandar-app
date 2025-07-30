@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ImageUpload } from "@/components/image-upload"
 import type { Event } from "@/lib/supabase"
 
@@ -34,13 +35,18 @@ const colorOptions = [
   { name: "Cyan", value: "bg-cyan-500", color: "#06B6D4" },
 ]
 
+const timeSlotOptions = [
+  { label: "早上 (6:00-12:00)", value: "morning", startTime: "08:00", endTime: "12:00" },
+  { label: "下午 (12:00-18:00)", value: "afternoon", startTime: "14:00", endTime: "18:00" },
+  { label: "晚上 (18:00-24:00)", value: "evening", startTime: "20:00", endTime: "23:00" },
+]
+
 export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate }: CreateEventModalProps) {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     date: selectedDate ? selectedDate.toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
-    start_time: "09:00",
-    end_time: "10:00",
+    timeSlot: "morning",
     location: "",
     organizer: "You",
     attendees: "",
@@ -85,17 +91,8 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
       newErrors.date = "Date is required"
     }
 
-    if (!formData.start_time) {
-      newErrors.start_time = "Start time is required"
-    }
-
-    if (!formData.end_time) {
-      newErrors.end_time = "End time is required"
-    }
-
-    // Validate that end time is after start time
-    if (formData.start_time && formData.end_time && formData.start_time >= formData.end_time) {
-      newErrors.end_time = "End time must be after start time"
+    if (!formData.timeSlot) {
+      newErrors.timeSlot = "Time slot is required"
     }
 
     setErrors(newErrors)
@@ -113,8 +110,12 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
     setSubmitError(null)
 
     try {
+      const selectedTimeSlot = timeSlotOptions.find((slot) => slot.value === formData.timeSlot)
+
       const eventData = {
         ...formData,
+        start_time: selectedTimeSlot?.startTime || "09:00",
+        end_time: selectedTimeSlot?.endTime || "10:00",
         attendees: formData.attendees
           .split(",")
           .map((attendee) => attendee.trim())
@@ -131,8 +132,7 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
         title: "",
         description: "",
         date: selectedDate ? selectedDate.toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
-        start_time: "09:00",
-        end_time: "10:00",
+        timeSlot: "morning",
         location: "",
         organizer: "You",
         attendees: "",
@@ -206,8 +206,8 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
             {errors.title && <p className="text-sm text-red-500">{errors.title}</p>}
           </div>
 
-          {/* Date and Time Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Date and Time Slot Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Date */}
             <div className="space-y-2">
               <Label htmlFor="date" className="text-sm font-medium text-gray-700 flex items-center gap-2">
@@ -225,38 +225,29 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
               {errors.date && <p className="text-sm text-red-500">{errors.date}</p>}
             </div>
 
-            {/* Start Time */}
+            {/* Time Slot */}
             <div className="space-y-2">
-              <Label htmlFor="start_time" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+              <Label htmlFor="timeSlot" className="text-sm font-medium text-gray-700 flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                Start Time *
+                Time Slot *
               </Label>
-              <Input
-                id="start_time"
-                type="time"
-                value={formData.start_time}
-                onChange={(e) => handleInputChange("start_time", e.target.value)}
-                className={`w-full ${errors.start_time ? "border-red-500" : ""}`}
+              <Select
+                value={formData.timeSlot}
+                onValueChange={(value) => handleInputChange("timeSlot", value)}
                 disabled={isSubmitting}
-              />
-              {errors.start_time && <p className="text-sm text-red-500">{errors.start_time}</p>}
-            </div>
-
-            {/* End Time */}
-            <div className="space-y-2">
-              <Label htmlFor="end_time" className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                End Time *
-              </Label>
-              <Input
-                id="end_time"
-                type="time"
-                value={formData.end_time}
-                onChange={(e) => handleInputChange("end_time", e.target.value)}
-                className={`w-full ${errors.end_time ? "border-red-500" : ""}`}
-                disabled={isSubmitting}
-              />
-              {errors.end_time && <p className="text-sm text-red-500">{errors.end_time}</p>}
+              >
+                <SelectTrigger className={`w-full ${errors.timeSlot ? "border-red-500" : ""}`}>
+                  <SelectValue placeholder="Select time slot" />
+                </SelectTrigger>
+                <SelectContent>
+                  {timeSlotOptions.map((slot) => (
+                    <SelectItem key={slot.value} value={slot.value}>
+                      {slot.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.timeSlot && <p className="text-sm text-red-500">{errors.timeSlot}</p>}
             </div>
           </div>
 

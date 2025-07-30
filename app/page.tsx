@@ -19,6 +19,8 @@ import {
   Sparkles,
   X,
   Loader2,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react"
 import { useEvents } from "@/hooks/useEvents"
 import { CreateEventModal } from "@/components/create-event-modal"
@@ -35,6 +37,9 @@ export default function Home() {
   const [showImageViewer, setShowImageViewer] = useState(false)
   const [viewerImage, setViewerImage] = useState<{ url: string; title: string } | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [expandedSlots, setExpandedSlots] = useState<Record<string, boolean>>({})
+  const [currentEventIndex, setCurrentEventIndex] = useState(0)
+  const [currentSlotEvents, setCurrentSlotEvents] = useState<Event[]>([])
 
   // Calendar state
   const [currentView, setCurrentView] = useState("week")
@@ -297,8 +302,26 @@ export default function Home() {
     }
   }, [showAIPopup])
 
-  const handleEventClick = (event) => {
+  const handleEventClick = (event, slotEvents?: Event[]) => {
+    if (slotEvents && slotEvents.length > 1) {
+      // Multiple events in slot
+      setCurrentSlotEvents(slotEvents)
+      const eventIndex = slotEvents.findIndex((e) => e.id === event.id)
+      setCurrentEventIndex(eventIndex)
+    } else {
+      // Single event
+      setCurrentSlotEvents([event])
+      setCurrentEventIndex(0)
+    }
     setSelectedEvent(event)
+  }
+
+  const handleNextEvent = () => {
+    if (currentSlotEvents.length > 1) {
+      const nextIndex = (currentEventIndex + 1) % currentSlotEvents.length
+      setCurrentEventIndex(nextIndex)
+      setSelectedEvent(currentSlotEvents[nextIndex])
+    }
   }
 
   const handleImageClick = (event: Event, e: React.MouseEvent) => {
@@ -328,38 +351,33 @@ export default function Home() {
     return 2 // evening
   }
 
-  // Helper function to calculate event position within time slot
-  const calculateEventStyleInSlot = (startTime: string, endTime: string, slotIndex: number) => {
-    const startHour = Number.parseInt(startTime.split(":")[0]) + Number.parseInt(startTime.split(":")[1]) / 60
-    const endHour = Number.parseInt(endTime.split(":")[0]) + Number.parseInt(endTime.split(":")[1]) / 60
+  // Group events by day and time slot
+  const getGroupedEvents = () => {
+    const displayEvents = getEventsForWeekView()
+    const grouped: Record<string, Record<number, Event[]>> = {}
 
-    let slotStart, slotEnd
-    switch (slotIndex) {
-      case 0: // morning 6-12
-        slotStart = 6
-        slotEnd = 12
-        break
-      case 1: // afternoon 12-18
-        slotStart = 12
-        slotEnd = 18
-        break
-      case 2: // evening 18-24
-        slotStart = 18
-        slotEnd = 24
-        break
-      default:
-        slotStart = 6
-        slotEnd = 12
-    }
+    displayEvents.forEach((event) => {
+      const dayKey = `day-${event.day}`
+      const slotIndex = getEventTimeSlot(event.startTime)
 
-    const slotHeight = 120 // 每个时间段的高度
-    const relativeStart = Math.max(0, (startHour - slotStart) / (slotEnd - slotStart))
-    const relativeEnd = Math.min(1, (endHour - slotStart) / (slotEnd - slotStart))
+      if (!grouped[dayKey]) {
+        grouped[dayKey] = {}
+      }
+      if (!grouped[dayKey][slotIndex]) {
+        grouped[dayKey][slotIndex] = []
+      }
+      grouped[dayKey][slotIndex].push(event)
+    })
 
-    const top = relativeStart * slotHeight
-    const height = Math.max(20, (relativeEnd - relativeStart) * slotHeight)
+    return grouped
+  }
 
-    return { top: `${top}px`, height: `${height}px` }
+  const toggleSlotExpansion = (dayIndex: number, slotIndex: number) => {
+    const key = `${dayIndex}-${slotIndex}`
+    setExpandedSlots((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }))
   }
 
   // Get mini calendar days
@@ -378,8 +396,8 @@ export default function Home() {
     // Here you would typically also control the actual audio playback
   }
 
-  // Get formatted events for display
-  const displayEvents = getEventsForWeekView()
+  // Get grouped events for display
+  const groupedEvents = getGroupedEvents()
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
@@ -598,13 +616,13 @@ export default function Home() {
               </div>
 
               {/* Time Grid with Morning/Afternoon/Evening */}
-              <div className="grid grid-cols-8">
+              <div className="grid grid-cols-8 h-full">
                 {/* Time Labels */}
                 <div className="text-white/70">
                   {timeSlots.map((slot, i) => (
                     <div
                       key={i}
-                      className="h-24 md:h-32 border-b border-white/10 pr-1 md:pr-2 text-right flex flex-col justify-center"
+                      className="flex-1 border-b border-white/10 pr-1 md:pr-2 text-right flex flex-col justify-center min-h-[120px]"
                     >
                       <div className="text-xs md:text-sm font-medium">{slot.name}</div>
                       <div className="text-xs text-white/50">{slot.time}</div>
@@ -614,56 +632,141 @@ export default function Home() {
 
                 {/* Days Columns */}
                 {Array.from({ length: 7 }).map((_, dayIndex) => (
-                  <div key={dayIndex} className="border-l border-white/20 relative">
-                    {timeSlots.map((_, timeIndex) => (
-                      <div key={timeIndex} className="h-24 md:h-32 border-b border-white/10"></div>
-                    ))}
+                  <div key={dayIndex} className="border-l border-white/20 flex flex-col">
+                    {timeSlots.map((_, slotIndex) => {
+                      const dayKey = `day-${dayIndex + 1}`
+                      const slotEvents = groupedEvents[dayKey]?.[slotIndex] || []
+                      const expandKey = `${dayIndex}-${slotIndex}`
+                      const isExpanded = expandedSlots[expandKey]
 
-                    {/* Events */}
-                    {displayEvents
-                      .filter((event) => event.day === dayIndex + 1)
-                      .map((event, i) => {
-                        const eventSlot = getEventTimeSlot(event.startTime)
-                        const eventStyle = calculateEventStyleInSlot(event.startTime, event.endTime, eventSlot)
-                        const hasImage = event.image_url || event.thumbnail_url
-
-                        return (
-                          <div
-                            key={event.id}
-                            className={`absolute rounded-md text-white text-xs shadow-md cursor-pointer transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg overflow-hidden ${
-                              hasImage ? "p-0" : `${event.color} p-1 md:p-2`
-                            }`}
-                            style={{
-                              ...eventStyle,
-                              left: "2px",
-                              right: "2px",
-                              top: `${eventSlot * (96 + 1) + Number.parseInt(eventStyle.top)}px`, // 96px = h-24, 128px = h-32 for md
-                            }}
-                            onClick={() => handleEventClick(event)}
-                          >
-                            {hasImage ? (
-                              // Image-only display
-                              <div className="relative w-full h-full">
-                                <img
-                                  src={event.thumbnail_url || event.image_url || "/placeholder.svg"}
-                                  alt={event.title}
-                                  className="w-full h-full object-cover rounded-md"
-                                />
-                                {/* Optional: Add a subtle overlay with just the title */}
-                                <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-1 rounded-b-md">
-                                  <div className="font-medium text-xs text-white truncate">{event.title}</div>
+                      return (
+                        <div key={slotIndex} className="flex-1 border-b border-white/10 p-1 min-h-[120px] relative">
+                          {slotEvents.length > 0 && (
+                            <div className="h-full">
+                              {slotEvents.length === 1 ? (
+                                // Single event - full height
+                                <div
+                                  className={`h-full rounded-md text-white text-xs shadow-md cursor-pointer transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg overflow-hidden ${
+                                    slotEvents[0].image_url || slotEvents[0].thumbnail_url
+                                      ? "p-0"
+                                      : `${slotEvents[0].color} p-1 md:p-2`
+                                  }`}
+                                  onClick={() => handleEventClick(slotEvents[0], slotEvents)}
+                                >
+                                  {slotEvents[0].image_url || slotEvents[0].thumbnail_url ? (
+                                    <div className="relative w-full h-full">
+                                      <img
+                                        src={
+                                          slotEvents[0].thumbnail_url || slotEvents[0].image_url || "/placeholder.svg"
+                                        }
+                                        alt={slotEvents[0].title}
+                                        className="w-full h-full object-cover rounded-md"
+                                      />
+                                      <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-1 rounded-b-md">
+                                        <div className="font-medium text-xs text-white truncate">
+                                          {slotEvents[0].title}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="h-full flex flex-col">
+                                      <div className="font-medium text-xs md:text-sm truncate">
+                                        {slotEvents[0].title}
+                                      </div>
+                                      <div className="opacity-80 text-xs mt-1 hidden md:block">{`${slotEvents[0].startTime} - ${slotEvents[0].endTime}`}</div>
+                                    </div>
+                                  )}
                                 </div>
-                              </div>
-                            ) : (
-                              // Text-only display (original format)
-                              <>
-                                <div className="font-medium text-xs md:text-sm truncate">{event.title}</div>
-                                <div className="opacity-80 text-xs mt-1 hidden md:block">{`${event.startTime} - ${event.endTime}`}</div>
-                              </>
-                            )}
-                          </div>
-                        )
-                      })}
+                              ) : (
+                                // Multiple events - collapsible
+                                <div className="h-full">
+                                  {/* First event (always visible) */}
+                                  <div
+                                    className={`${isExpanded ? "h-1/3" : "h-full"} rounded-md text-white text-xs shadow-md cursor-pointer transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg overflow-hidden mb-1 ${
+                                      slotEvents[0].image_url || slotEvents[0].thumbnail_url
+                                        ? "p-0"
+                                        : `${slotEvents[0].color} p-1 md:p-2`
+                                    }`}
+                                    onClick={() => handleEventClick(slotEvents[0], slotEvents)}
+                                  >
+                                    {slotEvents[0].image_url || slotEvents[0].thumbnail_url ? (
+                                      <div className="relative w-full h-full">
+                                        <img
+                                          src={
+                                            slotEvents[0].thumbnail_url || slotEvents[0].image_url || "/placeholder.svg"
+                                          }
+                                          alt={slotEvents[0].title}
+                                          className="w-full h-full object-cover rounded-md"
+                                        />
+                                        <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-1 rounded-b-md">
+                                          <div className="font-medium text-xs text-white truncate">
+                                            {slotEvents[0].title}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="h-full flex flex-col justify-between">
+                                        <div className="font-medium text-xs truncate">{slotEvents[0].title}</div>
+                                        {!isExpanded && (
+                                          <div className="text-xs opacity-70">+{slotEvents.length - 1} more</div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Expand/Collapse button */}
+                                  <button
+                                    onClick={() => toggleSlotExpansion(dayIndex, slotIndex)}
+                                    className="w-full bg-white/20 hover:bg-white/30 rounded text-white text-xs py-1 mb-1 transition-colors flex items-center justify-center"
+                                  >
+                                    {isExpanded ? (
+                                      <ChevronUp className="h-3 w-3" />
+                                    ) : (
+                                      <ChevronDown className="h-3 w-3" />
+                                    )}
+                                    <span className="ml-1">{slotEvents.length} events</span>
+                                  </button>
+
+                                  {/* Additional events (when expanded) */}
+                                  {isExpanded && (
+                                    <div className="flex-1 space-y-1 overflow-y-auto">
+                                      {slotEvents.slice(1).map((event, eventIndex) => (
+                                        <div
+                                          key={event.id}
+                                          className={`h-8 rounded text-white text-xs cursor-pointer transition-all duration-200 ease-in-out hover:translate-y-[-1px] hover:shadow-md overflow-hidden ${
+                                            event.image_url || event.thumbnail_url ? "p-0" : `${event.color} p-1`
+                                          }`}
+                                          onClick={() => handleEventClick(event, slotEvents)}
+                                        >
+                                          {event.image_url || event.thumbnail_url ? (
+                                            <div className="relative w-full h-full">
+                                              <img
+                                                src={event.thumbnail_url || event.image_url || "/placeholder.svg"}
+                                                alt={event.title}
+                                                className="w-full h-full object-cover rounded"
+                                              />
+                                              <div className="absolute inset-0 bg-black/30 flex items-center px-1">
+                                                <div className="font-medium text-xs text-white truncate">
+                                                  {event.title}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div className="h-full flex items-center">
+                                              <div className="font-medium text-xs truncate">{event.title}</div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 ))}
               </div>
@@ -726,10 +829,29 @@ export default function Home() {
           </div>
         )}
 
-        {/* Event Detail Modal - Updated to show different content based on image presence */}
+        {/* Event Detail Modal - Updated with Next Event button */}
         {selectedEvent && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className={`${selectedEvent.color} p-4 md:p-6 rounded-lg shadow-xl max-w-md w-full`}>
+            <div className={`${selectedEvent.color} p-4 md:p-6 rounded-lg shadow-xl max-w-md w-full relative`}>
+              {/* Next Event Button */}
+              {currentSlotEvents.length > 1 && (
+                <button
+                  onClick={handleNextEvent}
+                  className="absolute top-4 right-12 bg-white/20 hover:bg-white/30 rounded-full p-2 text-white transition-colors"
+                  title="Next Event"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              )}
+
+              {/* Close Button */}
+              <button
+                className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 rounded-full p-2 text-white transition-colors"
+                onClick={() => setSelectedEvent(null)}
+              >
+                <X className="h-4 w-4" />
+              </button>
+
               {selectedEvent.image_url && (
                 <div className="mb-4">
                   <img
@@ -743,7 +865,15 @@ export default function Home() {
                   />
                 </div>
               )}
-              <h3 className="text-xl md:text-2xl font-bold mb-4 text-white">{selectedEvent.title}</h3>
+
+              <h3 className="text-xl md:text-2xl font-bold mb-4 text-white pr-16">{selectedEvent.title}</h3>
+
+              {/* Event counter for multiple events */}
+              {currentSlotEvents.length > 1 && (
+                <div className="text-white/80 text-sm mb-2">
+                  Event {currentEventIndex + 1} of {currentSlotEvents.length}
+                </div>
+              )}
 
               {/* Only show details if there's no image */}
               {!selectedEvent.image_url && (
@@ -780,15 +910,6 @@ export default function Home() {
                   </p>
                 </div>
               )}
-
-              <div className="mt-6 flex justify-end">
-                <button
-                  className="bg-white text-gray-800 px-4 py-2 rounded hover:bg-gray-100 transition-colors text-sm md:text-base"
-                  onClick={() => setSelectedEvent(null)}
-                >
-                  Close
-                </button>
-              </div>
             </div>
           </div>
         )}
