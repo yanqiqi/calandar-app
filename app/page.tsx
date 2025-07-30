@@ -19,8 +19,6 @@ import {
   Sparkles,
   X,
   Loader2,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react"
 import { useEvents } from "@/hooks/useEvents"
 import { CreateEventModal } from "@/components/create-event-modal"
@@ -37,7 +35,6 @@ export default function Home() {
   const [showImageViewer, setShowImageViewer] = useState(false)
   const [viewerImage, setViewerImage] = useState<{ url: string; title: string } | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [expandedSlots, setExpandedSlots] = useState<Record<string, boolean>>({})
   const [currentEventIndex, setCurrentEventIndex] = useState(0)
   const [currentSlotEvents, setCurrentSlotEvents] = useState<Event[]>([])
 
@@ -372,14 +369,6 @@ export default function Home() {
     return grouped
   }
 
-  const toggleSlotExpansion = (dayIndex: number, slotIndex: number) => {
-    const key = `${dayIndex}-${slotIndex}`
-    setExpandedSlots((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }))
-  }
-
   // Get mini calendar days
   const miniCalendarDays = getMiniCalendarDays()
 
@@ -636,17 +625,18 @@ export default function Home() {
                     {timeSlots.map((_, slotIndex) => {
                       const dayKey = `day-${dayIndex + 1}`
                       const slotEvents = groupedEvents[dayKey]?.[slotIndex] || []
-                      const expandKey = `${dayIndex}-${slotIndex}`
-                      const isExpanded = expandedSlots[expandKey]
 
                       return (
-                        <div key={slotIndex} className="flex-1 border-b border-white/10 p-1 min-h-[120px] relative">
+                        <div
+                          key={slotIndex}
+                          className="flex-1 border-b border-white/10 p-2 min-h-[120px] relative flex items-center justify-center"
+                        >
                           {slotEvents.length > 0 && (
-                            <div className="h-full">
+                            <div className="relative">
                               {slotEvents.length === 1 ? (
-                                // Single event - full height
+                                // Single event - square card centered
                                 <div
-                                  className={`h-full rounded-md text-white text-xs shadow-md cursor-pointer transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg overflow-hidden ${
+                                  className={`w-16 h-16 md:w-20 md:h-20 rounded-lg text-white text-xs shadow-lg cursor-pointer transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-xl overflow-hidden ${
                                     slotEvents[0].image_url || slotEvents[0].thumbnail_url
                                       ? "p-0"
                                       : `${slotEvents[0].color} p-1 md:p-2`
@@ -660,106 +650,79 @@ export default function Home() {
                                           slotEvents[0].thumbnail_url || slotEvents[0].image_url || "/placeholder.svg"
                                         }
                                         alt={slotEvents[0].title}
-                                        className="w-full h-full object-cover rounded-md"
+                                        className="w-full h-full object-cover rounded-lg"
                                       />
-                                      <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-1 rounded-b-md">
-                                        <div className="font-medium text-xs text-white truncate">
+                                      <div className="absolute bottom-0 left-0 right-0 bg-black/70 backdrop-blur-sm p-1 rounded-b-lg">
+                                        <div className="font-medium text-xs text-white truncate text-center">
                                           {slotEvents[0].title}
                                         </div>
                                       </div>
                                     </div>
                                   ) : (
-                                    <div className="h-full flex flex-col">
-                                      <div className="font-medium text-xs md:text-sm truncate">
+                                    <div className="h-full flex flex-col items-center justify-center text-center">
+                                      <div className="font-medium text-xs leading-tight truncate w-full px-1">
                                         {slotEvents[0].title}
                                       </div>
-                                      <div className="opacity-80 text-xs mt-1 hidden md:block">{`${slotEvents[0].startTime} - ${slotEvents[0].endTime}`}</div>
                                     </div>
                                   )}
                                 </div>
                               ) : (
-                                // Multiple events - collapsible
-                                <div className="h-full">
-                                  {/* First event (always visible) */}
-                                  <div
-                                    className={`${isExpanded ? "h-1/3" : "h-full"} rounded-md text-white text-xs shadow-md cursor-pointer transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg overflow-hidden mb-1 ${
-                                      slotEvents[0].image_url || slotEvents[0].thumbnail_url
-                                        ? "p-0"
-                                        : `${slotEvents[0].color} p-1 md:p-2`
-                                    }`}
-                                    onClick={() => handleEventClick(slotEvents[0], slotEvents)}
-                                  >
-                                    {slotEvents[0].image_url || slotEvents[0].thumbnail_url ? (
-                                      <div className="relative w-full h-full">
-                                        <img
-                                          src={
-                                            slotEvents[0].thumbnail_url || slotEvents[0].image_url || "/placeholder.svg"
-                                          }
-                                          alt={slotEvents[0].title}
-                                          className="w-full h-full object-cover rounded-md"
-                                        />
-                                        <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-1 rounded-b-md">
-                                          <div className="font-medium text-xs text-white truncate">
-                                            {slotEvents[0].title}
+                                // Multiple events - stacked cards centered
+                                <div className="relative">
+                                  {slotEvents.slice(0, 3).map((event, eventIndex) => (
+                                    <div
+                                      key={event.id}
+                                      className={`w-16 h-16 md:w-20 md:h-20 rounded-lg text-white text-xs shadow-lg cursor-pointer transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-xl overflow-hidden absolute ${
+                                        event.image_url || event.thumbnail_url ? "p-0" : `${event.color} p-1 md:p-2`
+                                      }`}
+                                      style={{
+                                        top: `${eventIndex * 4}px`,
+                                        left: `${eventIndex * 4}px`,
+                                        zIndex: slotEvents.length - eventIndex,
+                                        transform: `rotate(${eventIndex * 2 - 2}deg)`,
+                                      }}
+                                      onClick={() => handleEventClick(event, slotEvents)}
+                                    >
+                                      {event.image_url || event.thumbnail_url ? (
+                                        <div className="relative w-full h-full">
+                                          <img
+                                            src={event.thumbnail_url || event.image_url || "/placeholder.svg"}
+                                            alt={event.title}
+                                            className="w-full h-full object-cover rounded-lg"
+                                          />
+                                          <div className="absolute bottom-0 left-0 right-0 bg-black/70 backdrop-blur-sm p-1 rounded-b-lg">
+                                            <div className="font-medium text-xs text-white truncate text-center">
+                                              {event.title}
+                                            </div>
                                           </div>
                                         </div>
-                                      </div>
-                                    ) : (
-                                      <div className="h-full flex flex-col justify-between">
-                                        <div className="font-medium text-xs truncate">{slotEvents[0].title}</div>
-                                        {!isExpanded && (
-                                          <div className="text-xs opacity-70">+{slotEvents.length - 1} more</div>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Expand/Collapse button */}
-                                  <button
-                                    onClick={() => toggleSlotExpansion(dayIndex, slotIndex)}
-                                    className="w-full bg-white/20 hover:bg-white/30 rounded text-white text-xs py-1 mb-1 transition-colors flex items-center justify-center"
-                                  >
-                                    {isExpanded ? (
-                                      <ChevronUp className="h-3 w-3" />
-                                    ) : (
-                                      <ChevronDown className="h-3 w-3" />
-                                    )}
-                                    <span className="ml-1">{slotEvents.length} events</span>
-                                  </button>
-
-                                  {/* Additional events (when expanded) */}
-                                  {isExpanded && (
-                                    <div className="flex-1 space-y-1 overflow-y-auto">
-                                      {slotEvents.slice(1).map((event, eventIndex) => (
-                                        <div
-                                          key={event.id}
-                                          className={`h-8 rounded text-white text-xs cursor-pointer transition-all duration-200 ease-in-out hover:translate-y-[-1px] hover:shadow-md overflow-hidden ${
-                                            event.image_url || event.thumbnail_url ? "p-0" : `${event.color} p-1`
-                                          }`}
-                                          onClick={() => handleEventClick(event, slotEvents)}
-                                        >
-                                          {event.image_url || event.thumbnail_url ? (
-                                            <div className="relative w-full h-full">
-                                              <img
-                                                src={event.thumbnail_url || event.image_url || "/placeholder.svg"}
-                                                alt={event.title}
-                                                className="w-full h-full object-cover rounded"
-                                              />
-                                              <div className="absolute inset-0 bg-black/30 flex items-center px-1">
-                                                <div className="font-medium text-xs text-white truncate">
-                                                  {event.title}
-                                                </div>
-                                              </div>
-                                            </div>
-                                          ) : (
-                                            <div className="h-full flex items-center">
-                                              <div className="font-medium text-xs truncate">{event.title}</div>
-                                            </div>
-                                          )}
+                                      ) : (
+                                        <div className="h-full flex flex-col items-center justify-center text-center">
+                                          <div className="font-medium text-xs leading-tight truncate w-full px-1">
+                                            {event.title}
+                                          </div>
                                         </div>
-                                      ))}
+                                      )}
+                                    </div>
+                                  ))}
+
+                                  {/* Event count indicator for stacked cards */}
+                                  {slotEvents.length > 3 && (
+                                    <div
+                                      className="absolute -bottom-2 -right-2 bg-white/90 text-gray-800 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow-md"
+                                      style={{ zIndex: slotEvents.length + 1 }}
+                                    >
+                                      +{slotEvents.length - 3}
                                     </div>
                                   )}
+
+                                  {/* Total count badge */}
+                                  <div
+                                    className="absolute -top-2 -right-2 bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow-md"
+                                    style={{ zIndex: slotEvents.length + 2 }}
+                                  >
+                                    {slotEvents.length}
+                                  </div>
                                 </div>
                               )}
                             </div>
