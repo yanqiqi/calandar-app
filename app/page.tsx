@@ -382,7 +382,7 @@ export default function Home() {
 
   const togglePlay = () => {
     setIsPlaying(!isPlaying)
-    // Here you would typically also control the actual audio playback
+    // Here you would typically also control the actual audio playbook
   }
 
   // Get grouped events for display
@@ -608,12 +608,16 @@ export default function Home() {
               <div className="md:hidden border-b border-white/20">
                 <div className="flex">
                   {/* Fixed time column header */}
-                  <div className="w-20 flex-shrink-0 p-2 text-center text-white/50 text-xs bg-white/10"></div>
+                  <div className="w-24 flex-shrink-0 p-2 text-center text-white/50 text-xs bg-white/10"></div>
                   {/* Scrollable days header */}
                   <div className="flex-1 overflow-x-auto">
-                    <div className="flex" style={{ minWidth: "calc(7 * 80px)" }}>
+                    <div className="flex" style={{ minWidth: "calc(7 * 25vw)" }}>
                       {weekDays.map((day, i) => (
-                        <div key={i} className="w-20 flex-shrink-0 p-2 text-center border-l border-white/20">
+                        <div
+                          key={i}
+                          className="flex-shrink-0 p-2 text-center border-l border-white/20"
+                          style={{ width: "25vw" }}
+                        >
                           <div className="text-xs text-white/70 font-medium">{day}</div>
                           <div
                             className={`text-sm font-medium mt-1 text-white transition-colors ${weekDates[i] === currentDate.getDate() ? "bg-blue-500 rounded-full w-6 h-6 flex items-center justify-center mx-auto text-xs" : ""}`}
@@ -761,11 +765,12 @@ export default function Home() {
               <div className="md:hidden h-full">
                 <div className="flex h-full">
                   {/* Fixed Time Labels Column */}
-                  <div className="w-20 flex-shrink-0 text-white/70 bg-white/10">
+                  <div className="w-24 flex-shrink-0 text-white/70 bg-white/10">
                     {timeSlots.map((slot, i) => (
                       <div
                         key={i}
-                        className="border-b border-white/10 pr-2 text-right flex flex-col justify-center h-20"
+                        className="border-b border-white/10 pr-2 text-right flex flex-col justify-center"
+                        style={{ height: "calc((100vh - 200px) / 3)" }}
                       >
                         <div className="text-xs font-medium">{slot.name}</div>
                         <div className="text-xs text-white/50">{slot.time}</div>
@@ -775,10 +780,14 @@ export default function Home() {
 
                   {/* Scrollable Days Container */}
                   <div className="flex-1 overflow-x-auto">
-                    <div className="flex" style={{ minWidth: "calc(7 * 80px)" }}>
+                    <div className="flex" style={{ minWidth: "calc(7 * 25vw)" }}>
                       {/* Days Columns */}
                       {Array.from({ length: 7 }).map((_, dayIndex) => (
-                        <div key={dayIndex} className="w-20 flex-shrink-0 border-l border-white/20 flex flex-col">
+                        <div
+                          key={dayIndex}
+                          className="flex-shrink-0 border-l border-white/20 flex flex-col"
+                          style={{ width: "25vw" }}
+                        >
                           {timeSlots.map((_, slotIndex) => {
                             const dayKey = `day-${dayIndex + 1}`
                             const slotEvents = groupedEvents[dayKey]?.[slotIndex] || []
@@ -786,18 +795,25 @@ export default function Home() {
                             return (
                               <div
                                 key={slotIndex}
-                                className="border-b border-white/10 p-1 h-20 relative flex items-center justify-center"
+                                className="border-b border-white/10 p-2 relative flex items-center justify-center"
+                                style={{ height: "calc((100vh - 200px) / 3)" }}
                               >
                                 {slotEvents.length > 0 && (
                                   <div className="relative">
                                     {slotEvents.length === 1 ? (
-                                      // Single event - square card centered
+                                      // Single event - responsive square card
                                       <div
-                                        className={`w-16 h-16 rounded-lg text-white text-xs shadow-lg cursor-pointer transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-xl overflow-hidden ${
+                                        className={`rounded-lg text-white text-xs shadow-lg cursor-pointer transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-xl overflow-hidden ${
                                           slotEvents[0].image_url || slotEvents[0].thumbnail_url
                                             ? "p-0"
-                                            : `${slotEvents[0].color} p-1`
+                                            : `${slotEvents[0].color} p-2`
                                         }`}
+                                        style={{
+                                          width: "calc(25vw - 24px)",
+                                          height: "calc(25vw - 24px)",
+                                          maxWidth: "120px",
+                                          maxHeight: "120px",
+                                        }}
                                         onClick={() => handleEventClick(slotEvents[0], slotEvents)}
                                       >
                                         {slotEvents[0].image_url || slotEvents[0].thumbnail_url ? (
@@ -827,17 +843,21 @@ export default function Home() {
                                         )}
                                       </div>
                                     ) : (
-                                      // Multiple events - stacked cards centered
+                                      // Multiple events - stacked cards
                                       <div className="relative">
                                         {slotEvents.slice(0, 3).map((event, eventIndex) => (
                                           <div
                                             key={event.id}
-                                            className={`w-16 h-16 rounded-lg text-white text-xs shadow-lg cursor-pointer transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-xl overflow-hidden absolute ${
-                                              event.image_url || event.thumbnail_url ? "p-0" : `${event.color} p-1`
+                                            className={`rounded-lg text-white text-xs shadow-lg cursor-pointer transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-xl overflow-hidden absolute ${
+                                              event.image_url || event.thumbnail_url ? "p-0" : `${event.color} p-2`
                                             }`}
                                             style={{
-                                              top: `${eventIndex * 3}px`,
-                                              left: `${eventIndex * 3}px`,
+                                              width: "calc(25vw - 24px)",
+                                              height: "calc(25vw - 24px)",
+                                              maxWidth: "120px",
+                                              maxHeight: "120px",
+                                              top: `${eventIndex * 4}px`,
+                                              left: `${eventIndex * 4}px`,
                                               zIndex: slotEvents.length - eventIndex,
                                               transform: `rotate(${eventIndex * 2 - 2}deg)`,
                                             }}
@@ -869,7 +889,7 @@ export default function Home() {
                                         {/* Event count indicator for stacked cards */}
                                         {slotEvents.length > 3 && (
                                           <div
-                                            className="absolute -bottom-1 -right-1 bg-white/90 text-gray-800 rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold shadow-md"
+                                            className="absolute -bottom-1 -right-1 bg-white/90 text-gray-800 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow-md"
                                             style={{ zIndex: slotEvents.length + 1 }}
                                           >
                                             +{slotEvents.length - 3}
@@ -878,7 +898,7 @@ export default function Home() {
 
                                         {/* Total count badge */}
                                         <div
-                                          className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold shadow-md"
+                                          className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow-md"
                                           style={{ zIndex: slotEvents.length + 2 }}
                                         >
                                           {slotEvents.length}
