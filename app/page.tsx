@@ -34,7 +34,7 @@ export default function Home() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showImageViewer, setShowImageViewer] = useState(false)
   const [viewerImage, setViewerImage] = useState<{ url: string; title: string } | null>(null)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false) // 移动端默认收起
   const [currentEventIndex, setCurrentEventIndex] = useState(0)
   const [currentSlotEvents, setCurrentSlotEvents] = useState<Event[]>([])
 
@@ -589,8 +589,8 @@ export default function Home() {
           {/* Week View */}
           <div className="flex-1 overflow-auto p-2 md:p-4">
             <div className="bg-white/20 backdrop-blur-lg rounded-xl border border-white/20 shadow-xl h-full">
-              {/* Week Header */}
-              <div className="grid grid-cols-8 border-b border-white/20">
+              {/* Week Header - Desktop */}
+              <div className="hidden md:grid grid-cols-8 border-b border-white/20">
                 <div className="p-1 md:p-2 text-center text-white/50 text-xs"></div>
                 {weekDays.map((day, i) => (
                   <div key={i} className="p-1 md:p-2 text-center border-l border-white/20">
@@ -604,8 +604,31 @@ export default function Home() {
                 ))}
               </div>
 
-              {/* Time Grid with Morning/Afternoon/Evening */}
-              <div className="grid grid-cols-8 h-full">
+              {/* Week Header - Mobile */}
+              <div className="md:hidden border-b border-white/20">
+                <div className="flex">
+                  {/* Fixed time column header */}
+                  <div className="w-20 flex-shrink-0 p-2 text-center text-white/50 text-xs bg-white/10"></div>
+                  {/* Scrollable days header */}
+                  <div className="flex-1 overflow-x-auto">
+                    <div className="flex" style={{ minWidth: "calc(7 * 80px)" }}>
+                      {weekDays.map((day, i) => (
+                        <div key={i} className="w-20 flex-shrink-0 p-2 text-center border-l border-white/20">
+                          <div className="text-xs text-white/70 font-medium">{day}</div>
+                          <div
+                            className={`text-sm font-medium mt-1 text-white transition-colors ${weekDates[i] === currentDate.getDate() ? "bg-blue-500 rounded-full w-6 h-6 flex items-center justify-center mx-auto text-xs" : ""}`}
+                          >
+                            {weekDates[i]}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Time Grid - Desktop */}
+              <div className="hidden md:grid grid-cols-8 h-full">
                 {/* Time Labels */}
                 <div className="text-white/70">
                   {timeSlots.map((slot, i) => (
@@ -732,6 +755,146 @@ export default function Home() {
                     })}
                   </div>
                 ))}
+              </div>
+
+              {/* Time Grid - Mobile */}
+              <div className="md:hidden h-full">
+                <div className="flex h-full">
+                  {/* Fixed Time Labels Column */}
+                  <div className="w-20 flex-shrink-0 text-white/70 bg-white/10">
+                    {timeSlots.map((slot, i) => (
+                      <div
+                        key={i}
+                        className="border-b border-white/10 pr-2 text-right flex flex-col justify-center h-20"
+                      >
+                        <div className="text-xs font-medium">{slot.name}</div>
+                        <div className="text-xs text-white/50">{slot.time}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Scrollable Days Container */}
+                  <div className="flex-1 overflow-x-auto">
+                    <div className="flex" style={{ minWidth: "calc(7 * 80px)" }}>
+                      {/* Days Columns */}
+                      {Array.from({ length: 7 }).map((_, dayIndex) => (
+                        <div key={dayIndex} className="w-20 flex-shrink-0 border-l border-white/20 flex flex-col">
+                          {timeSlots.map((_, slotIndex) => {
+                            const dayKey = `day-${dayIndex + 1}`
+                            const slotEvents = groupedEvents[dayKey]?.[slotIndex] || []
+
+                            return (
+                              <div
+                                key={slotIndex}
+                                className="border-b border-white/10 p-1 h-20 relative flex items-center justify-center"
+                              >
+                                {slotEvents.length > 0 && (
+                                  <div className="relative">
+                                    {slotEvents.length === 1 ? (
+                                      // Single event - square card centered
+                                      <div
+                                        className={`w-16 h-16 rounded-lg text-white text-xs shadow-lg cursor-pointer transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-xl overflow-hidden ${
+                                          slotEvents[0].image_url || slotEvents[0].thumbnail_url
+                                            ? "p-0"
+                                            : `${slotEvents[0].color} p-1`
+                                        }`}
+                                        onClick={() => handleEventClick(slotEvents[0], slotEvents)}
+                                      >
+                                        {slotEvents[0].image_url || slotEvents[0].thumbnail_url ? (
+                                          <div className="relative w-full h-full">
+                                            <img
+                                              src={
+                                                slotEvents[0].thumbnail_url ||
+                                                slotEvents[0].image_url ||
+                                                "/placeholder.svg" ||
+                                                "/placeholder.svg"
+                                              }
+                                              alt={slotEvents[0].title}
+                                              className="w-full h-full object-cover rounded-lg"
+                                            />
+                                            <div className="absolute bottom-0 left-0 right-0 bg-black/70 backdrop-blur-sm p-1 rounded-b-lg">
+                                              <div className="font-medium text-xs text-white truncate text-center">
+                                                {slotEvents[0].title}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div className="h-full flex flex-col items-center justify-center text-center">
+                                            <div className="font-medium text-xs leading-tight truncate w-full px-1">
+                                              {slotEvents[0].title}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      // Multiple events - stacked cards centered
+                                      <div className="relative">
+                                        {slotEvents.slice(0, 3).map((event, eventIndex) => (
+                                          <div
+                                            key={event.id}
+                                            className={`w-16 h-16 rounded-lg text-white text-xs shadow-lg cursor-pointer transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-xl overflow-hidden absolute ${
+                                              event.image_url || event.thumbnail_url ? "p-0" : `${event.color} p-1`
+                                            }`}
+                                            style={{
+                                              top: `${eventIndex * 3}px`,
+                                              left: `${eventIndex * 3}px`,
+                                              zIndex: slotEvents.length - eventIndex,
+                                              transform: `rotate(${eventIndex * 2 - 2}deg)`,
+                                            }}
+                                            onClick={() => handleEventClick(event, slotEvents)}
+                                          >
+                                            {event.image_url || event.thumbnail_url ? (
+                                              <div className="relative w-full h-full">
+                                                <img
+                                                  src={event.thumbnail_url || event.image_url || "/placeholder.svg"}
+                                                  alt={event.title}
+                                                  className="w-full h-full object-cover rounded-lg"
+                                                />
+                                                <div className="absolute bottom-0 left-0 right-0 bg-black/70 backdrop-blur-sm p-1 rounded-b-lg">
+                                                  <div className="font-medium text-xs text-white truncate text-center">
+                                                    {event.title}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            ) : (
+                                              <div className="h-full flex flex-col items-center justify-center text-center">
+                                                <div className="font-medium text-xs leading-tight truncate w-full px-1">
+                                                  {event.title}
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        ))}
+
+                                        {/* Event count indicator for stacked cards */}
+                                        {slotEvents.length > 3 && (
+                                          <div
+                                            className="absolute -bottom-1 -right-1 bg-white/90 text-gray-800 rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold shadow-md"
+                                            style={{ zIndex: slotEvents.length + 1 }}
+                                          >
+                                            +{slotEvents.length - 3}
+                                          </div>
+                                        )}
+
+                                        {/* Total count badge */}
+                                        <div
+                                          className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold shadow-md"
+                                          style={{ zIndex: slotEvents.length + 2 }}
+                                        >
+                                          {slotEvents.length}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
