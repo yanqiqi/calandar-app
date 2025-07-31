@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import Image from "next/image"
 import {
   ChevronLeft,
@@ -37,11 +37,16 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false) // 移动端默认收起
   const [currentEventIndex, setCurrentEventIndex] = useState(0)
   const [currentSlotEvents, setCurrentSlotEvents] = useState<Event[]>([])
+  const [headerVisible, setHeaderVisible] = useState(true)
+  const [lastScrollY, setLastScrollY] = useState(0)
 
   // Calendar state
   const [currentView, setCurrentView] = useState("week")
   const [currentDate, setCurrentDate] = useState(new Date(2025, 2, 5)) // March 5, 2025
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
+
+  // Refs for scroll handling
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   // Calculate date range based on current view and date
   const dateRange = useMemo(() => {
@@ -72,6 +77,29 @@ export default function Home() {
   // Use the events hook with dynamic date range
   const { events, loading, error, usingFallback, isSupabaseConfigured, createEvent, updateEvent, deleteEvent } =
     useEvents(dateRange.start, dateRange.end)
+
+  // Handle scroll for header visibility
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY
+
+      if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        // Scrolling down
+        setHeaderVisible(false)
+      } else {
+        // Scrolling up
+        setHeaderVisible(true)
+      }
+
+      setLastScrollY(currentScrollY)
+    }
+
+    window.addEventListener("scroll", handleScroll, { passive: true })
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll)
+    }
+  }, [lastScrollY])
 
   // Get current month and format it
   const getCurrentMonth = () => {
@@ -401,7 +429,9 @@ export default function Home() {
 
       {/* Navigation */}
       <header
-        className={`absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 md:px-8 py-4 md:py-6 opacity-0 ${isLoaded ? "animate-fade-in" : ""}`}
+        className={`fixed top-0 left-0 right-0 z-10 flex items-center justify-between px-4 md:px-8 py-4 md:py-6 transition-transform duration-300 ease-in-out opacity-0 ${isLoaded ? "animate-fade-in" : ""} ${
+          headerVisible ? "translate-y-0" : "-translate-y-full"
+        }`}
         style={{ animationDelay: "0.2s" }}
       >
         <div className="flex items-center gap-2 md:gap-4">
@@ -438,7 +468,9 @@ export default function Home() {
       )}
 
       {/* Main Content */}
-      <main className="relative h-screen w-full pt-16 md:pt-20 flex">
+      <main
+        className={`relative h-screen w-full flex transition-all duration-300 ${headerVisible ? "pt-16 md:pt-20" : "pt-0"}`}
+      >
         {/* Sidebar */}
         <div
           className={`${
@@ -519,7 +551,7 @@ export default function Home() {
           style={{ animationDelay: "0.6s" }}
         >
           {/* Calendar Controls */}
-          <div className="flex items-center justify-between p-2 md:p-4 border-b border-white/20 flex-wrap gap-2">
+          <div className="flex items-center justify-between p-2 md:p-4 border-b border-white/20 flex-wrap gap-2 bg-black/20 backdrop-blur-sm">
             <div className="flex items-center gap-2 md:gap-4 flex-wrap">
               <button
                 className="px-3 py-1.5 md:px-4 md:py-2 text-white bg-blue-500 rounded-md hover:bg-blue-600 transition-colors text-sm md:text-base"
@@ -587,7 +619,7 @@ export default function Home() {
           )}
 
           {/* Week View */}
-          <div className="flex-1 overflow-auto p-2 md:p-4">
+          <div className="flex-1 overflow-auto p-2 md:p-4" ref={scrollContainerRef}>
             <div className="bg-white/20 backdrop-blur-lg rounded-xl border border-white/20 shadow-xl h-full">
               {/* Week Header - Desktop */}
               <div className="hidden md:grid grid-cols-8 border-b border-white/20">
@@ -608,7 +640,7 @@ export default function Home() {
               <div className="md:hidden border-b border-white/20">
                 <div className="flex">
                   {/* Fixed time column header */}
-                  <div className="w-24 flex-shrink-0 p-2 text-center text-white/50 text-xs bg-white/10"></div>
+                  <div className="w-20 flex-shrink-0 p-2 text-center text-white/50 text-xs bg-white/10"></div>
                   {/* Scrollable days header */}
                   <div className="flex-1 overflow-x-auto">
                     <div className="flex" style={{ minWidth: "calc(7 * 25vw)" }}>
@@ -765,12 +797,12 @@ export default function Home() {
               <div className="md:hidden h-full">
                 <div className="flex h-full">
                   {/* Fixed Time Labels Column */}
-                  <div className="w-24 flex-shrink-0 text-white/70 bg-white/10">
+                  <div className="w-20 flex-shrink-0 text-white/70 bg-white/10">
                     {timeSlots.map((slot, i) => (
                       <div
                         key={i}
                         className="border-b border-white/10 pr-2 text-right flex flex-col justify-center"
-                        style={{ height: "calc((100vh - 200px) / 3)" }}
+                        style={{ height: "25vw" }}
                       >
                         <div className="text-xs font-medium">{slot.name}</div>
                         <div className="text-xs text-white/50">{slot.time}</div>
@@ -796,12 +828,12 @@ export default function Home() {
                               <div
                                 key={slotIndex}
                                 className="border-b border-white/10 p-2 relative flex items-center justify-center"
-                                style={{ height: "calc((100vh - 200px) / 3)" }}
+                                style={{ height: "25vw" }}
                               >
                                 {slotEvents.length > 0 && (
                                   <div className="relative">
                                     {slotEvents.length === 1 ? (
-                                      // Single event - responsive square card
+                                      // Single event - square card
                                       <div
                                         className={`rounded-lg text-white text-xs shadow-lg cursor-pointer transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-xl overflow-hidden ${
                                           slotEvents[0].image_url || slotEvents[0].thumbnail_url
@@ -809,8 +841,8 @@ export default function Home() {
                                             : `${slotEvents[0].color} p-2`
                                         }`}
                                         style={{
-                                          width: "calc(25vw - 24px)",
-                                          height: "calc(25vw - 24px)",
+                                          width: "calc(25vw - 16px)",
+                                          height: "calc(25vw - 16px)",
                                           maxWidth: "120px",
                                           maxHeight: "120px",
                                         }}
@@ -852,8 +884,8 @@ export default function Home() {
                                               event.image_url || event.thumbnail_url ? "p-0" : `${event.color} p-2`
                                             }`}
                                             style={{
-                                              width: "calc(25vw - 24px)",
-                                              height: "calc(25vw - 24px)",
+                                              width: "calc(25vw - 16px)",
+                                              height: "calc(25vw - 16px)",
                                               maxWidth: "120px",
                                               maxHeight: "120px",
                                               top: `${eventIndex * 4}px`,
