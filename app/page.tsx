@@ -34,7 +34,7 @@ export default function Home() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showImageViewer, setShowImageViewer] = useState(false)
   const [viewerImage, setViewerImage] = useState<{ url: string; title: string } | null>(null)
-  const [sidebarOpen, setSidebarOpen] = useState(false) // 移动端默认收起
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [currentEventIndex, setCurrentEventIndex] = useState(0)
   const [currentSlotEvents, setCurrentSlotEvents] = useState<Event[]>([])
   const [headerVisible, setHeaderVisible] = useState(true)
@@ -42,11 +42,11 @@ export default function Home() {
 
   // Calendar state
   const [currentView, setCurrentView] = useState("week")
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 2, 5)) // March 5, 2025
+  const [currentDate, setCurrentDate] = useState(new Date(2025, 2, 5))
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
 
   // Refs for scroll handling
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const mainScrollRef = useRef<HTMLDivElement>(null)
 
   // Calculate date range based on current view and date
   const dateRange = useMemo(() => {
@@ -55,16 +55,13 @@ export default function Home() {
 
     switch (currentView) {
       case "day":
-        // Same day
         break
       case "week":
-        // Start of week (Sunday) to end of week (Saturday)
         const dayOfWeek = start.getDay()
         start.setDate(start.getDate() - dayOfWeek)
         end.setDate(start.getDate() + 6)
         break
       case "month":
-        // Start of month to end of month
         start.setDate(1)
         end.setMonth(end.getMonth() + 1)
         end.setDate(0)
@@ -81,12 +78,15 @@ export default function Home() {
   // Handle scroll for header visibility
   useEffect(() => {
     const handleScroll = () => {
-      const currentScrollY = window.scrollY
+      const scrollElement = mainScrollRef.current
+      if (!scrollElement) return
 
-      if (currentScrollY > lastScrollY && currentScrollY > 100) {
+      const currentScrollY = scrollElement.scrollTop
+
+      if (currentScrollY > lastScrollY && currentScrollY > 50) {
         // Scrolling down
         setHeaderVisible(false)
-      } else {
+      } else if (currentScrollY < lastScrollY) {
         // Scrolling up
         setHeaderVisible(true)
       }
@@ -94,10 +94,12 @@ export default function Home() {
       setLastScrollY(currentScrollY)
     }
 
-    window.addEventListener("scroll", handleScroll, { passive: true })
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll)
+    const scrollElement = mainScrollRef.current
+    if (scrollElement) {
+      scrollElement.addEventListener("scroll", handleScroll, { passive: true })
+      return () => {
+        scrollElement.removeEventListener("scroll", handleScroll)
+      }
     }
   }, [lastScrollY])
 
@@ -136,12 +138,10 @@ export default function Home() {
 
     const days = []
 
-    // Add empty cells for days before the first day of the month
     for (let i = 0; i < firstDayOfWeek; i++) {
       days.push(null)
     }
 
-    // Add days of the month
     for (let i = 1; i <= daysInMonth; i++) {
       days.push(i)
     }
@@ -161,7 +161,7 @@ export default function Home() {
 
       return {
         ...event,
-        day: dayOfWeek + 1, // Convert to 1-based index for display
+        day: dayOfWeek + 1,
         startTime: event.start_time,
         endTime: event.end_time,
       }
@@ -218,7 +218,7 @@ export default function Home() {
   }
 
   const goToToday = () => {
-    setCurrentDate(new Date(2025, 2, 5)) // March 5, 2025 (keeping original date)
+    setCurrentDate(new Date(2025, 2, 5))
   }
 
   const handleMiniCalendarDayClick = (day) => {
@@ -265,7 +265,6 @@ export default function Home() {
   ) => {
     try {
       if (usingFallback) {
-        // Show a toast message for demo mode
         toast({
           title: "Demo Mode",
           description: "Event creation is disabled in demo mode. Configure Supabase to enable full functionality.",
@@ -301,7 +300,6 @@ export default function Home() {
   useEffect(() => {
     setIsLoaded(true)
 
-    // Show AI popup after 3 seconds
     const popupTimer = setTimeout(() => {
       setShowAIPopup(true)
     }, 3000)
@@ -329,12 +327,10 @@ export default function Home() {
 
   const handleEventClick = (event, slotEvents?: Event[]) => {
     if (slotEvents && slotEvents.length > 1) {
-      // Multiple events in slot
       setCurrentSlotEvents(slotEvents)
       const eventIndex = slotEvents.findIndex((e) => e.id === event.id)
       setCurrentEventIndex(eventIndex)
     } else {
-      // Single event
       setCurrentSlotEvents([event])
       setCurrentEventIndex(0)
     }
@@ -350,7 +346,7 @@ export default function Home() {
   }
 
   const handleImageClick = (event: Event, e: React.MouseEvent) => {
-    e.stopPropagation() // Prevent event card click
+    e.stopPropagation()
     if (event.image_url) {
       setViewerImage({ url: event.image_url, title: event.title })
       setShowImageViewer(true)
@@ -361,7 +357,7 @@ export default function Home() {
   const weekDays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
   const weekDates = getWeekDates()
 
-  // 新的时间段定义：早中晚
+  // 时间段定义
   const timeSlots = [
     { name: "早上", label: "Morning", time: "6:00-12:00", value: "morning" },
     { name: "下午", label: "Afternoon", time: "12:00-18:00", value: "afternoon" },
@@ -371,9 +367,9 @@ export default function Home() {
   // Helper function to determine which time slot an event belongs to
   const getEventTimeSlot = (startTime: string) => {
     const hour = Number.parseInt(startTime.split(":")[0])
-    if (hour >= 6 && hour < 12) return 0 // morning
-    if (hour >= 12 && hour < 18) return 1 // afternoon
-    return 2 // evening
+    if (hour >= 6 && hour < 12) return 0
+    if (hour >= 12 && hour < 18) return 1
+    return 2
   }
 
   // Group events by day and time slot
@@ -397,10 +393,8 @@ export default function Home() {
     return grouped
   }
 
-  // Get mini calendar days
   const miniCalendarDays = getMiniCalendarDays()
 
-  // Sample my calendars
   const myCalendars = [
     { name: "My Calendar", color: "bg-blue-500" },
     { name: "Work", color: "bg-green-500" },
@@ -410,10 +404,8 @@ export default function Home() {
 
   const togglePlay = () => {
     setIsPlaying(!isPlaying)
-    // Here you would typically also control the actual audio playbook
   }
 
-  // Get grouped events for display
   const groupedEvents = getGroupedEvents()
 
   return (
@@ -429,7 +421,7 @@ export default function Home() {
 
       {/* Navigation */}
       <header
-        className={`fixed top-0 left-0 right-0 z-10 flex items-center justify-between px-4 md:px-8 py-4 md:py-6 transition-transform duration-300 ease-in-out opacity-0 ${isLoaded ? "animate-fade-in" : ""} ${
+        className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 md:px-8 py-4 md:py-6 transition-transform duration-300 ease-in-out bg-black/20 backdrop-blur-sm opacity-0 ${isLoaded ? "animate-fade-in" : ""} ${
           headerVisible ? "translate-y-0" : "-translate-y-full"
         }`}
         style={{ animationDelay: "0.2s" }}
@@ -547,11 +539,11 @@ export default function Home() {
 
         {/* Calendar View */}
         <div
-          className={`flex-1 flex flex-col opacity-0 ${isLoaded ? "animate-fade-in" : ""}`}
+          className={`flex-1 flex flex-col opacity-0 ${isLoaded ? "animate-fade-in" : ""} overflow-hidden`}
           style={{ animationDelay: "0.6s" }}
         >
           {/* Calendar Controls */}
-          <div className="flex items-center justify-between p-2 md:p-4 border-b border-white/20 flex-wrap gap-2 bg-black/20 backdrop-blur-sm">
+          <div className="flex items-center justify-between p-2 md:p-4 border-b border-white/20 flex-wrap gap-2 bg-black/20 backdrop-blur-sm flex-shrink-0">
             <div className="flex items-center gap-2 md:gap-4 flex-wrap">
               <button
                 className="px-3 py-1.5 md:px-4 md:py-2 text-white bg-blue-500 rounded-md hover:bg-blue-600 transition-colors text-sm md:text-base"
@@ -619,10 +611,10 @@ export default function Home() {
           )}
 
           {/* Week View */}
-          <div className="flex-1 overflow-auto p-2 md:p-4" ref={scrollContainerRef}>
-            <div className="bg-white/20 backdrop-blur-lg rounded-xl border border-white/20 shadow-xl h-full">
+          <div className="flex-1 overflow-auto p-2 md:p-4" ref={mainScrollRef}>
+            <div className="bg-white/20 backdrop-blur-lg rounded-xl border border-white/20 shadow-xl min-h-full">
               {/* Week Header - Desktop */}
-              <div className="hidden md:grid grid-cols-8 border-b border-white/20">
+              <div className="hidden md:grid grid-cols-8 border-b border-white/20 sticky top-0 bg-white/10 backdrop-blur-sm z-10">
                 <div className="p-1 md:p-2 text-center text-white/50 text-xs"></div>
                 {weekDays.map((day, i) => (
                   <div key={i} className="p-1 md:p-2 text-center border-l border-white/20">
@@ -637,13 +629,13 @@ export default function Home() {
               </div>
 
               {/* Week Header - Mobile */}
-              <div className="md:hidden border-b border-white/20">
+              <div className="md:hidden border-b border-white/20 sticky top-0 bg-white/10 backdrop-blur-sm z-10">
                 <div className="flex">
                   {/* Fixed time column header */}
-                  <div className="w-20 flex-shrink-0 p-2 text-center text-white/50 text-xs bg-white/10"></div>
+                  <div className="w-20 flex-shrink-0 p-2 text-center text-white/50 text-xs bg-white/20"></div>
                   {/* Scrollable days header */}
-                  <div className="flex-1 overflow-x-auto">
-                    <div className="flex" style={{ minWidth: "calc(7 * 25vw)" }}>
+                  <div className="flex-1 overflow-x-auto scrollbar-hide">
+                    <div className="flex" style={{ width: "calc(7 * 25vw)" }}>
                       {weekDays.map((day, i) => (
                         <div
                           key={i}
@@ -664,13 +656,13 @@ export default function Home() {
               </div>
 
               {/* Time Grid - Desktop */}
-              <div className="hidden md:grid grid-cols-8 h-full">
+              <div className="hidden md:grid grid-cols-8 min-h-full">
                 {/* Time Labels */}
-                <div className="text-white/70">
+                <div className="text-white/70 sticky left-0 bg-white/10 backdrop-blur-sm z-10">
                   {timeSlots.map((slot, i) => (
                     <div
                       key={i}
-                      className="flex-1 border-b border-white/10 pr-1 md:pr-2 text-right flex flex-col justify-center min-h-[120px]"
+                      className="border-b border-white/10 pr-1 md:pr-2 text-right flex flex-col justify-center min-h-[120px]"
                     >
                       <div className="text-xs md:text-sm font-medium">{slot.name}</div>
                       <div className="text-xs text-white/50">{slot.time}</div>
@@ -688,12 +680,11 @@ export default function Home() {
                       return (
                         <div
                           key={slotIndex}
-                          className="flex-1 border-b border-white/10 p-2 min-h-[120px] relative flex items-center justify-center"
+                          className="border-b border-white/10 p-2 min-h-[120px] relative flex items-center justify-center"
                         >
                           {slotEvents.length > 0 && (
                             <div className="relative">
                               {slotEvents.length === 1 ? (
-                                // Single event - square card centered
                                 <div
                                   className={`w-16 h-16 md:w-20 md:h-20 rounded-lg text-white text-xs shadow-lg cursor-pointer transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-xl overflow-hidden ${
                                     slotEvents[0].image_url || slotEvents[0].thumbnail_url
@@ -726,7 +717,6 @@ export default function Home() {
                                   )}
                                 </div>
                               ) : (
-                                // Multiple events - stacked cards centered
                                 <div className="relative">
                                   {slotEvents.slice(0, 3).map((event, eventIndex) => (
                                     <div
@@ -765,7 +755,6 @@ export default function Home() {
                                     </div>
                                   ))}
 
-                                  {/* Event count indicator for stacked cards */}
                                   {slotEvents.length > 3 && (
                                     <div
                                       className="absolute -bottom-2 -right-2 bg-white/90 text-gray-800 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow-md"
@@ -775,7 +764,6 @@ export default function Home() {
                                     </div>
                                   )}
 
-                                  {/* Total count badge */}
                                   <div
                                     className="absolute -top-2 -right-2 bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow-md"
                                     style={{ zIndex: slotEvents.length + 2 }}
@@ -794,10 +782,10 @@ export default function Home() {
               </div>
 
               {/* Time Grid - Mobile */}
-              <div className="md:hidden h-full">
-                <div className="flex h-full">
+              <div className="md:hidden min-h-full">
+                <div className="flex min-h-full">
                   {/* Fixed Time Labels Column */}
-                  <div className="w-20 flex-shrink-0 text-white/70 bg-white/10">
+                  <div className="w-20 flex-shrink-0 text-white/70 bg-white/20 sticky left-0 z-10">
                     {timeSlots.map((slot, i) => (
                       <div
                         key={i}
@@ -811,8 +799,8 @@ export default function Home() {
                   </div>
 
                   {/* Scrollable Days Container */}
-                  <div className="flex-1 overflow-x-auto">
-                    <div className="flex" style={{ minWidth: "calc(7 * 25vw)" }}>
+                  <div className="flex-1 overflow-x-auto scrollbar-hide">
+                    <div className="flex" style={{ width: "calc(7 * 25vw)" }}>
                       {/* Days Columns */}
                       {Array.from({ length: 7 }).map((_, dayIndex) => (
                         <div
@@ -833,7 +821,6 @@ export default function Home() {
                                 {slotEvents.length > 0 && (
                                   <div className="relative">
                                     {slotEvents.length === 1 ? (
-                                      // Single event - square card
                                       <div
                                         className={`rounded-lg text-white text-xs shadow-lg cursor-pointer transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-xl overflow-hidden ${
                                           slotEvents[0].image_url || slotEvents[0].thumbnail_url
@@ -875,7 +862,6 @@ export default function Home() {
                                         )}
                                       </div>
                                     ) : (
-                                      // Multiple events - stacked cards
                                       <div className="relative">
                                         {slotEvents.slice(0, 3).map((event, eventIndex) => (
                                           <div
@@ -918,7 +904,6 @@ export default function Home() {
                                           </div>
                                         ))}
 
-                                        {/* Event count indicator for stacked cards */}
                                         {slotEvents.length > 3 && (
                                           <div
                                             className="absolute -bottom-1 -right-1 bg-white/90 text-gray-800 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow-md"
@@ -928,7 +913,6 @@ export default function Home() {
                                           </div>
                                         )}
 
-                                        {/* Total count badge */}
                                         <div
                                           className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow-md"
                                           style={{ zIndex: slotEvents.length + 2 }}
@@ -1007,11 +991,10 @@ export default function Home() {
           </div>
         )}
 
-        {/* Event Detail Modal - Updated with Next Event button */}
+        {/* Event Detail Modal */}
         {selectedEvent && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className={`${selectedEvent.color} p-4 md:p-6 rounded-lg shadow-xl max-w-md w-full relative`}>
-              {/* Next Event Button */}
               {currentSlotEvents.length > 1 && (
                 <button
                   onClick={handleNextEvent}
@@ -1022,7 +1005,6 @@ export default function Home() {
                 </button>
               )}
 
-              {/* Close Button */}
               <button
                 className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 rounded-full p-2 text-white transition-colors"
                 onClick={() => setSelectedEvent(null)}
@@ -1046,14 +1028,12 @@ export default function Home() {
 
               <h3 className="text-xl md:text-2xl font-bold mb-4 text-white pr-16">{selectedEvent.title}</h3>
 
-              {/* Event counter for multiple events */}
               {currentSlotEvents.length > 1 && (
                 <div className="text-white/80 text-sm mb-2">
                   Event {currentEventIndex + 1} of {currentSlotEvents.length}
                 </div>
               )}
 
-              {/* Only show details if there's no image */}
               {!selectedEvent.image_url && (
                 <div className="space-y-3 text-white text-sm md:text-base">
                   <p className="flex items-center">
