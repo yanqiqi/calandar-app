@@ -43,7 +43,7 @@ export default function Home() {
 
   // Calendar state
   const [currentView, setCurrentView] = useState("week")
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 2, 5))
+  const [currentDate, setCurrentDate] = useState(new Date(2025, 1, 8))
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
 
   // Refs for scroll handling
@@ -219,7 +219,7 @@ export default function Home() {
   }
 
   const goToToday = () => {
-    setCurrentDate(new Date(2025, 2, 5))
+    setCurrentDate(new Date(2025, 1, 8))
   }
 
   const handleMiniCalendarDayClick = (day) => {
@@ -656,130 +656,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Time Grid - Desktop */}
-              <div className="hidden md:grid grid-cols-8 min-h-full">
-                {/* Time Labels */}
-                <div className="text-white/70 sticky left-0 bg-white/10 backdrop-blur-sm z-10">
-                  {timeSlots.map((slot, i) => (
-                    <div
-                      key={i}
-                      className="border-b border-white/10 pr-1 md:pr-2 text-right flex flex-col justify-center min-h-[120px]"
-                    >
-                      <div className="text-xs md:text-sm font-medium">{slot.name}</div>
-                      <div className="text-xs text-white/50">{slot.time}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Days Columns */}
-                {Array.from({ length: 7 }).map((_, dayIndex) => (
-                  <div key={dayIndex} className="border-l border-white/20 flex flex-col">
-                    {timeSlots.map((_, slotIndex) => {
-                      const dayKey = `day-${dayIndex + 1}`
-                      const slotEvents = groupedEvents[dayKey]?.[slotIndex] || []
-
-                      return (
-                        <div
-                          key={slotIndex}
-                          className="border-b border-white/10 p-2 min-h-[120px] relative flex items-center justify-center"
-                        >
-                          {slotEvents.length > 0 &&
-                              slotEvents.length === 1 ? (
-                                <div
-                                  className={`w-16 h-16 md:w-20 md:h-20 rounded-lg text-white text-xs shadow-lg cursor-pointer transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-xl overflow-hidden ${
-                                    slotEvents[0].image_url || slotEvents[0].thumbnail_url
-                                      ? "p-0"
-                                      : `${slotEvents[0].color} p-1 md:p-2`
-                                  }`}
-                                  onClick={() => handleEventClick(slotEvents[0], slotEvents)}
-                                >
-                                  {slotEvents[0].image_url || slotEvents[0].thumbnail_url ? (
-                                    <div className="relative w-full h-full">
-                                      <img
-                                        src={
-                                          slotEvents[0].thumbnail_url || slotEvents[0].image_url || "/placeholder.svg"
-                                        }
-                                        alt={slotEvents[0].title}
-                                        className="w-full h-full object-cover rounded-lg"
-                                      />
-                                      <div className="absolute bottom-0 left-0 right-0 bg-black/70 backdrop-blur-sm p-1 rounded-b-lg">
-                                        <div className="font-medium text-xs text-white truncate text-center">
-                                          {slotEvents[0].title}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div className="h-full flex flex-col items-center justify-center text-center">
-                                      <div className="font-medium text-xs leading-tight truncate w-full px-1">
-                                        {slotEvents[0].title}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (slotEvents.length > 0 ?
-                                <div className="relative fix-pos">
-                                  {slotEvents.slice(0, 3).map((event, eventIndex) => (
-                                    <div
-                                      key={event.id}
-                                      className={`w-16 h-16 md:w-20 md:h-20 rounded-lg text-white text-xs shadow-lg cursor-pointer transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-xl overflow-hidden absolute ${
-                                        event.image_url || event.thumbnail_url ? "p-0" : `${event.color} p-1 md:p-2`
-                                      }`}
-                                      style={{
-                                        top: `${eventIndex * 4}px`,
-                                        left: `${eventIndex * 4}px`,
-                                        zIndex: slotEvents.length - eventIndex,
-                                        transform: `rotate(${eventIndex * 2 - 2}deg)`,
-                                      }}
-                                      onClick={() => handleEventClick(event, slotEvents)}
-                                    >
-                                      {event.image_url || event.thumbnail_url ? (
-                                        <div className="relative w-full h-full">
-                                          <img
-                                            src={event.thumbnail_url || event.image_url || "/placeholder.svg"}
-                                            alt={event.title}
-                                            className="w-full h-full object-cover rounded-lg"
-                                          />
-                                          <div className="absolute bottom-0 left-0 right-0 bg-black/70 backdrop-blur-sm p-1 rounded-b-lg">
-                                            <div className="font-medium text-xs text-white truncate text-center">
-                                              {event.title}
-                                            </div>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <div className="h-full flex flex-col items-center justify-center text-center">
-                                          <div className="font-medium text-xs leading-tight truncate w-full px-1">
-                                            {event.title}
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))}
-
-                                  {slotEvents.length > 3 && (
-                                    <div
-                                      className="absolute -bottom-2 -right-2 bg-white/90 text-gray-800 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow-md"
-                                      style={{ zIndex: slotEvents.length + 1 }}
-                                    >
-                                      +{slotEvents.length - 3}
-                                    </div>
-                                  )}
-
-                                  <div
-                                    className="absolute -top-2 -right-2 bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow-md"
-                                    style={{ zIndex: slotEvents.length + 2 }}
-                                  >
-                                    {slotEvents.length}
-                                  </div>
-                                </div>:<div></div>
-                              )
-                          }
-                        </div>
-                      )
-                    })}
-                  </div>
-                ))}
-              </div>
-
               {/* Time Grid - Mobile */}
               <div className="md:hidden min-h-full">
                 <div className="flex min-h-full">
@@ -788,7 +664,7 @@ export default function Home() {
                     {timeSlots.map((slot, i) => (
                       <div
                         key={i}
-                        className="border-b border-white/10 pr-2 text-right flex flex-col justify-center"
+                        className="border-b border-white/10 pr-2 text-center flex flex-col justify-center"
                         style={{ height: "25vw" }}
                       >
                         <div className="text-xs font-medium">{slot.name}</div>

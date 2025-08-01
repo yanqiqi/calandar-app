@@ -47,9 +47,9 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
     description: "",
     date: selectedDate ? selectedDate.toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
     timeSlot: "morning",
-    location: "",
-    organizer: "You",
-    attendees: "",
+    // location: "",
+    // organizer: "You",
+    // attendees: "",
     color: "bg-blue-500",
   })
   const [imageData, setImageData] = useState<{ file: File; thumbnail: Blob; compressed: Blob } | null>(null)
@@ -251,8 +251,8 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
             </div>
           </div>
 
-          {/* Location */}
-          <div className="space-y-2">
+          Location
+          {/* <div className="space-y-2">
             <Label htmlFor="location" className="text-sm font-medium text-gray-700 flex items-center gap-2">
               <MapPin className="h-4 w-4" />
               Location
@@ -266,10 +266,10 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
               className="w-full"
               disabled={isSubmitting}
             />
-          </div>
+          </div> */}
 
           {/* Organizer */}
-          <div className="space-y-2">
+          {/* <div className="space-y-2">
             <Label htmlFor="organizer" className="text-sm font-medium text-gray-700 flex items-center gap-2">
               <User className="h-4 w-4" />
               Organizer
@@ -283,10 +283,10 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
               className="w-full"
               disabled={isSubmitting}
             />
-          </div>
+          </div> */}
 
           {/* Attendees */}
-          <div className="space-y-2">
+          {/* <div className="space-y-2">
             <Label htmlFor="attendees" className="text-sm font-medium text-gray-700 flex items-center gap-2">
               <Users className="h-4 w-4" />
               Attendees
@@ -301,7 +301,7 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
               disabled={isSubmitting}
             />
             <p className="text-xs text-gray-500">Separate multiple attendees with commas</p>
-          </div>
+          </div> */}
 
           {/* Image Upload */}
           <ImageUpload onImageSelect={handleImageSelect} onImageRemove={handleImageRemove} disabled={isSubmitting} />
