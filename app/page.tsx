@@ -25,6 +25,7 @@ import { CreateEventModal } from "@/components/create-event-modal"
 import type { Event } from "@/lib/supabase"
 import { toast } from "@/hooks/use-toast"
 import { ImageViewer } from "@/components/image-viewer"
+import './page.css';
 
 export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false)
@@ -682,9 +683,8 @@ export default function Home() {
                           key={slotIndex}
                           className="border-b border-white/10 p-2 min-h-[120px] relative flex items-center justify-center"
                         >
-                          {slotEvents.length > 0 && (
-                            <div className="relative">
-                              {slotEvents.length === 1 ? (
+                          {slotEvents.length > 0 &&
+                              slotEvents.length === 1 ? (
                                 <div
                                   className={`w-16 h-16 md:w-20 md:h-20 rounded-lg text-white text-xs shadow-lg cursor-pointer transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-xl overflow-hidden ${
                                     slotEvents[0].image_url || slotEvents[0].thumbnail_url
@@ -716,8 +716,8 @@ export default function Home() {
                                     </div>
                                   )}
                                 </div>
-                              ) : (
-                                <div className="relative">
+                              ) : (slotEvents.length > 0 ?
+                                <div className="relative fix-pos">
                                   {slotEvents.slice(0, 3).map((event, eventIndex) => (
                                     <div
                                       key={event.id}
@@ -770,10 +770,9 @@ export default function Home() {
                                   >
                                     {slotEvents.length}
                                   </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                                </div>:<div></div>
+                              )
+                          }
                         </div>
                       )
                     })}
@@ -818,9 +817,7 @@ export default function Home() {
                                 className="border-b border-white/10 p-2 relative flex items-center justify-center"
                                 style={{ height: "25vw" }}
                               >
-                                {slotEvents.length > 0 && (
-                                  <div className="relative">
-                                    {slotEvents.length === 1 ? (
+                                {slotEvents.length > 0 && slotEvents.length === 1 ? (
                                       <div
                                         className={`rounded-lg text-white text-xs shadow-lg cursor-pointer transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-xl overflow-hidden ${
                                           slotEvents[0].image_url || slotEvents[0].thumbnail_url
@@ -861,8 +858,8 @@ export default function Home() {
                                           </div>
                                         )}
                                       </div>
-                                    ) : (
-                                      <div className="relative">
+                                    ) : ( slotEvents.length > 0 ?
+                                      <div className="relative fix-pos">
                                         {slotEvents.slice(0, 3).map((event, eventIndex) => (
                                           <div
                                             key={event.id}
@@ -920,9 +917,7 @@ export default function Home() {
                                           {slotEvents.length}
                                         </div>
                                       </div>
-                                    )}
-                                  </div>
-                                )}
+                                    :<div></div> )}
                               </div>
                             )
                           })}
