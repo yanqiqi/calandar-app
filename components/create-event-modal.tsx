@@ -116,10 +116,10 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
         ...formData,
         start_time: selectedTimeSlot?.startTime || "09:00",
         end_time: selectedTimeSlot?.endTime || "10:00",
-        attendees: formData.attendees
-          .split(",")
-          .map((attendee) => attendee.trim())
-          .filter((attendee) => attendee.length > 0),
+        // attendees: formData.attendees
+        //   .split(",")
+        //   .map((attendee) => attendee.trim())
+        //   .filter((attendee) => attendee.length > 0),
         image_url: null,
         thumbnail_url: null,
         image_filename: null,
@@ -133,9 +133,9 @@ export function CreateEventModal({ isOpen, onClose, onCreateEvent, selectedDate 
         description: "",
         date: selectedDate ? selectedDate.toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
         timeSlot: "morning",
-        location: "",
-        organizer: "You",
-        attendees: "",
+        // location: "",
+        // organizer: "You",
+        // attendees: "",
         color: "bg-blue-500",
       })
       setImageData(null)
