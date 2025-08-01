@@ -43,7 +43,7 @@ export default function Home() {
 
   // Calendar state
   const [currentView, setCurrentView] = useState("week")
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 1, 8))
+  const [currentDate, setCurrentDate] = useState(new Date(2025, 7, 1))
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
 
   // Refs for scroll handling
@@ -219,7 +219,8 @@ export default function Home() {
   }
 
   const goToToday = () => {
-    setCurrentDate(new Date(2025, 1, 8))
+    const currentDate = new Date();
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate()));
   }
 
   const handleMiniCalendarDayClick = (day) => {
